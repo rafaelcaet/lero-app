@@ -12,9 +12,9 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
     backgroundColor: "#1b1d27",
     pixelArt: true,
     roundPixels: true,
+    // O canvas ocupa todo o contêiner (sem faixas pretas); a câmera segue o jogador.
     scale: {
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
+      mode: Phaser.Scale.RESIZE,
     },
     physics: {
       default: "arcade",

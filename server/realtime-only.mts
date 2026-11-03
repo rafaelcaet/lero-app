@@ -8,7 +8,7 @@
  *   PORT              porta (padrão 3001; Railway/Render/Fly definem sozinhos)
  *   HOST              interface (padrão 0.0.0.0)
  *   ALLOWED_ORIGINS   domínios do site, separados por vírgula
- *                     ex.: https://lero-app.vercel.app  (recomendado em produção)
+ *                     ex.: https://lero-app-nu.vercel.app  (recomendado em produção)
  *   ICE_SERVERS       JSON com servidores STUN/TURN (veja server/main.mts)
  */
 import { createServer } from "node:http";

@@ -10,7 +10,7 @@ primary_region = 'gru'
 [env]
   PORT = '8080'
   # Domínio(s) do site, separados por vírgula. Ajuste se o domínio da Vercel for outro.
-  ALLOWED_ORIGINS = 'https://lero-app.vercel.app'
+  ALLOWED_ORIGINS = 'https://lero-app-nu.vercel.app'
 
 [http_service]
   internal_port = 8080

@@ -241,6 +241,7 @@ export function createRealtimeServer(options: RealtimeOptions): RealtimeServer {
     handleUpgrade(req, socket, head) {
       const origin = req.headers.origin ?? "";
       if (options.allowedOrigins.length > 0 && !options.allowedOrigins.includes(origin)) {
+        console.warn(`[realtime] origem recusada: "${origin}" (permitidas: ${options.allowedOrigins.join(", ")})`);
         socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
         socket.destroy();
         return;
