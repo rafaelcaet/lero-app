@@ -46,6 +46,30 @@ docker run -p 3000:3000 gather-clone
 
 Coloque HTTPS na frente (a maioria dos serviços já faz isso automaticamente).
 
+### Opção 3 — Site na Vercel + servidor do jogo separado
+
+A Vercel não mantém WebSocket, então o servidor do jogo roda em outro serviço
+(Railway, Render, Fly.io…) e o site na Vercel se conecta a ele.
+
+**Servidor do jogo** (no Render: novo *Web Service* apontando para este repositório):
+
+| Campo | Valor |
+|---|---|
+| Build Command | `pnpm install` |
+| Start Command | `pnpm start:realtime` |
+| Health Check Path | `/health` |
+| Variável `ALLOWED_ORIGINS` | `https://SEU-APP.vercel.app` |
+| Variável `ICE_SERVERS` | (opcional) servidores TURN |
+
+**Vercel** → *Settings → Environment Variables*:
+
+| Nome | Valor |
+|---|---|
+| `NEXT_PUBLIC_WS_URL` | `wss://SEU-SERVIDOR.onrender.com/ws` |
+
+Depois faça **Redeploy** na Vercel: variáveis `NEXT_PUBLIC_*` entram no build.
+As configurações de *Build and Deployment* podem ficar no padrão.
+
 ### TURN (recomendado para uso pela internet)
 
 Sem TURN, a chamada se conecta direto entre os navegadores (STUN). Isso funciona na
@@ -65,7 +89,7 @@ ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.exemplo
 | `ICE_SERVERS` | STUN do Google | Servidores STUN/TURN (JSON) enviados aos clientes |
 | `ALLOWED_ORIGINS` | qualquer | Origens aceitas no WebSocket, separadas por vírgula |
 | `ALLOWED_DEV_ORIGINS` | — | Domínios externos liberados no `pnpm dev` |
-| `NEXT_PUBLIC_WS_URL` | mesma origem `/ws` | WebSocket em outro endereço (build) |
+| `NEXT_PUBLIC_WS_URL` | mesma origem `/ws` | WebSocket em outro endereço, ex.: site na Vercel (build) |
 
 ## Limites conhecidos
 

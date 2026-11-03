@@ -1,0 +1,18 @@
+# Só o servidor do jogo (WebSocket), sem Next.js. Usado no Fly.io (veja fly.toml)
+# quando o site está hospedado separadamente (ex.: Vercel).
+FROM node:24-slim
+WORKDIR /app
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+
+# O servidor importa só módulos puros de src/ (layout do mapa, cadeiras, protocolo).
+COPY server ./server
+COPY src ./src
+
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080
+EXPOSE 8080
+
+# Comando de start do servidor do jogo.
+CMD ["node", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "server/realtime-only.mts"]

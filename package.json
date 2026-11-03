@@ -1,23 +1,30 @@
 {
-  "name": "teste",
+  "name": "gather-clone",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/main.mts --dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "NODE_ENV=production node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/main.mts",
+    "start:realtime": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/realtime-only.mts",
+    "share": "cloudflared tunnel --url http://localhost:3000",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "map:export": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-office-map.mts"
   },
   "dependencies": {
     "next": "16.4.4",
+    "phaser": "^3.90.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "ws": "^8.22.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.4",
     "tailwindcss": "^4",
