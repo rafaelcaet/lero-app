@@ -2,6 +2,7 @@ import { tableIdOfSeat } from "@/game/maps/officeSeats";
 import {
   WS_PATH,
   type ChatMessage,
+  type DirectMessage,
   type Facing,
   type MoveAnim,
   type PlayerState,
@@ -11,6 +12,16 @@ import { Emitter } from "./Emitter";
 import { NetworkClient, type ConnectionStatus } from "./NetworkClient";
 import { INITIAL_CALL_STATE, TableCall, type CallState } from "./TableCall";
 
+/** Conversa de DM com outro jogador (só em memória, nesta aba). */
+export interface DmConversation {
+  peerId: string;
+  /** Nome e cor guardados para a conversa continuar legível se a pessoa sair. */
+  peerName: string;
+  colorIndex: number;
+  messages: readonly DirectMessage[];
+  unread: number;
+}
+
 export interface SessionState {
   status: ConnectionStatus;
   selfId: string | null;
@@ -18,6 +29,15 @@ export interface SessionState {
   /** Mensagens da mesa atual (zera ao trocar de mesa). */
   chat: readonly ChatMessage[];
   call: CallState;
+  /** Jogador que o personagem local está seguindo (só no cliente). */
+  followTargetId: string | null;
+  /** Conversas de DM por id do outro jogador. */
+  dms: Readonly<Record<string, DmConversation>>;
+}
+
+/** Quantas conversas têm mensagens não lidas. */
+export function unreadConversations(state: SessionState): number {
+  return Object.values(state.dms).filter((c) => c.unread > 0).length;
 }
 
 type SessionEvents = {
@@ -32,7 +52,11 @@ const INITIAL_STATE: SessionState = {
   players: {},
   chat: [],
   call: INITIAL_CALL_STATE,
+  followTargetId: null,
+  dms: {},
 };
+
+const MAX_DM_HISTORY = 300;
 
 export function resolveServerUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_WS_URL;
@@ -99,6 +123,7 @@ export class Session {
       (to, data) => this.net.send({ type: "signal", to, data }),
     );
     this.call = call;
+    this.setState({ call: call.getState() });
     this.unsubscribers = [
       this.net.on("status", (status) => this.handleStatus(status)),
       this.net.on("message", (msg) => this.handleMessage(msg)),
@@ -145,12 +170,50 @@ export class Session {
     if (trimmed) this.net.send({ type: "chat", text: trimmed });
   }
 
+  /** Faz o personagem local caminhar até outro jogador e acompanhá-lo. */
+  follow(playerId: string) {
+    if (playerId === this.state.selfId || !this.state.players[playerId]) return;
+    if (this.state.followTargetId !== playerId) this.setState({ followTargetId: playerId });
+  }
+
+  stopFollow() {
+    if (this.state.followTargetId !== null) this.setState({ followTargetId: null });
+  }
+
   toggleMic() {
     this.call?.toggleMic();
   }
 
   toggleCam() {
     this.call?.toggleCam();
+  }
+
+  setInputVolume(volume: number) {
+    this.call?.setInputVolume(volume);
+  }
+
+  setOutputVolume(volume: number) {
+    this.call?.setOutputVolume(volume);
+  }
+
+  /** Nível do microfone (0–1) para o medidor; 0 sem chamada ativa. */
+  getInputLevel(): number {
+    return this.call?.getInputLevel() ?? 0;
+  }
+
+  /** Envia uma DM. A mensagem entra na conversa quando o servidor confirma. */
+  sendDm(to: string, text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || to === this.state.selfId || !this.state.players[to]) return;
+    this.net.send({ type: "dm", to, text: trimmed });
+  }
+
+  /** Zera o contador de não lidas de uma conversa (ex.: ao abri-la). */
+  markDmRead(peerId: string) {
+    const conversation = this.state.dms[peerId];
+    if (conversation && conversation.unread > 0) {
+      this.setState({ dms: { ...this.state.dms, [peerId]: { ...conversation, unread: 0 } } });
+    }
   }
 
   /** Cadeiras ocupadas: seatId → playerId. */
@@ -172,7 +235,7 @@ export class Session {
     if (status !== "open") {
       // Perdeu a conexão: o servidor já liberou a cadeira; zera o estado remoto.
       this.joined = false;
-      this.setState({ status, selfId: null, players: {}, chat: [] });
+      this.setState({ status, selfId: null, players: {}, chat: [], followTargetId: null });
       this.call?.sync(false, []);
     } else {
       this.setState({ status });
@@ -203,7 +266,8 @@ export class Session {
       case "player-left": {
         const next = { ...players };
         delete next[msg.id];
-        this.setState({ players: next });
+        const followTargetId = this.state.followTargetId === msg.id ? null : this.state.followTargetId;
+        this.setState({ players: next, followTargetId });
         break;
       }
       case "player-moved":
@@ -226,6 +290,9 @@ export class Session {
           this.setState({ chat: [...this.state.chat, msg.message].slice(-200) });
         }
         break;
+      case "dm":
+        this.receiveDm(msg.message);
+        break;
       case "signal":
         this.call?.handleSignal(msg.from, msg.data);
         break;
@@ -237,6 +304,22 @@ export class Session {
       this.syncCallPeers();
     }
     this.events.emit("message", msg);
+  }
+
+  private receiveDm(message: DirectMessage) {
+    const selfId = this.state.selfId;
+    const incoming = message.toId === selfId;
+    const peerId = incoming ? message.fromId : message.toId;
+    const peer = this.state.players[peerId];
+    const current = this.state.dms[peerId];
+    const conversation: DmConversation = {
+      peerId,
+      peerName: peer?.name ?? current?.peerName ?? message.fromName,
+      colorIndex: peer?.colorIndex ?? current?.colorIndex ?? 0,
+      messages: [...(current?.messages ?? []), message].slice(-MAX_DM_HISTORY),
+      unread: (current?.unread ?? 0) + (incoming ? 1 : 0),
+    };
+    this.setState({ dms: { ...this.state.dms, [peerId]: conversation } });
   }
 
   private syncCallPeers() {

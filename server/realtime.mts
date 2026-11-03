@@ -1,5 +1,5 @@
 /**
- * Tempo real do escritório: posições, cadeiras, chat por mesa e sinalização
+ * Tempo real do escritório: posições, cadeiras, chat por mesa, DMs e sinalização
  * WebRTC. Áudio/vídeo não passam por aqui (vão P2P entre os navegadores).
  * Montado no mesmo servidor HTTP do Next (veja server/main.mts), no caminho /ws.
  */
@@ -163,6 +163,22 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
       for (const c of clients.values()) {
         if (tableOf(c.state) === tableId) send(c, { type: "chat", message });
       }
+      return;
+    }
+    case "dm": {
+      const target = clients.get(String(msg.to));
+      const text = String(msg.text ?? "").trim().slice(0, LIMITS.dmLength);
+      if (!target?.state || target === client || !text) return;
+      const message = {
+        id: randomUUID(),
+        fromId: id,
+        fromName: state.name,
+        toId: String(msg.to),
+        text,
+        ts: Date.now(),
+      };
+      send(target, { type: "dm", message });
+      send(client, { type: "dm", message });
       return;
     }
     case "signal": {

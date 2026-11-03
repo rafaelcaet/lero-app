@@ -107,7 +107,8 @@ export class SeatInteraction {
     this.prompt.destroy();
   }
 
-  private stand() {
+  /** Levanta da cadeira (também usado ao começar a seguir alguém). */
+  stand() {
     this.player.standUp();
     this.session.stand();
   }

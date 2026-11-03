@@ -3,6 +3,8 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Fredoka (identidade): só textos principais — títulos e botões de ação. */
+  --font-display: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
 }
 
 html,
@@ -17,4 +19,37 @@ body {
 canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+/* Mini celular vibrando quando há DM não lida: duas sacudidas e uma pausa. */
+@keyframes phone-buzz {
+  0%, 40%, 100% { transform: rotate(0) translateX(0); }
+  4%  { transform: rotate(-12deg) translateX(-1px); }
+  8%  { transform: rotate(12deg) translateX(1px); }
+  12% { transform: rotate(-10deg) translateX(-1px); }
+  16% { transform: rotate(10deg) translateX(1px); }
+  20% { transform: rotate(-6deg); }
+  24% { transform: rotate(6deg); }
+  28% { transform: rotate(0); }
+}
+
+.animate-phone-buzz {
+  animation: phone-buzz 1.6s ease-in-out infinite;
+  transform-origin: 50% 80%;
+}
+
+@keyframes phone-pop {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+.animate-phone-pop {
+  animation: phone-pop 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-phone-buzz,
+  .animate-phone-pop {
+    animation: none;
+  }
 }

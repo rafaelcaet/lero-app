@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { LIMITS } from "@/shared/protocol";
-import { resolveServerUrl, Session } from "@/session/Session";
-import { useSessionState } from "@/session/useSession";
-import { TablePanel } from "@/components/table/TablePanel";
-import { GameCanvas } from "./GameCanvas";
+import { Office } from "./Office";
 
 const NAME_STORAGE_KEY = "gather-clone:name";
 
@@ -55,7 +52,7 @@ function NameForm({ onSubmit }: { onSubmit: (name: string) => void }) {
         onSubmit(trimmed);
       }}
     >
-      <label htmlFor="player-name" className="text-sm text-neutral-300">
+      <label htmlFor="player-name" className="font-display text-lg font-semibold text-neutral-100">
         Como você quer ser chamado?
       </label>
       <input
@@ -70,33 +67,10 @@ function NameForm({ onSubmit }: { onSubmit: (name: string) => void }) {
       <button
         type="submit"
         disabled={!value.trim()}
-        className="rounded bg-emerald-600 px-3 py-2 font-medium text-white hover:bg-emerald-500 disabled:opacity-40"
+        className="rounded bg-emerald-600 px-3 py-2 font-display text-base font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
       >
         Entrar no escritório
       </button>
     </form>
-  );
-}
-
-function Office({ name }: { name: string }) {
-  // Construir a sessão não conecta; a conexão abre/fecha no efeito (seguro em Strict Mode).
-  const [session] = useState(() => new Session(name, resolveServerUrl()));
-  const state = useSessionState(session);
-
-  useEffect(() => {
-    session.start();
-    return () => session.stop();
-  }, [session]);
-
-  return (
-    <div className="relative h-full w-full">
-      <GameCanvas session={session} />
-      {state.status !== "open" && (
-        <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded bg-amber-600/90 px-3 py-1 text-xs text-white">
-          {state.status === "connecting" ? "Conectando ao servidor…" : "Sem conexão com o servidor. Tentando novamente…"}
-        </div>
-      )}
-      <TablePanel session={session} state={state} />
-    </div>
   );
 }

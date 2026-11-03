@@ -16,6 +16,7 @@ import { Player } from "../entities/Player";
 import { RemotePlayer } from "../entities/RemotePlayer";
 import { createOfficeLayout, type Grid } from "../maps/officeLayout";
 import { getSession } from "../registry";
+import { FollowPlayer } from "../systems/FollowPlayer";
 import { SeatInteraction } from "../systems/SeatInteraction";
 
 export interface GameSceneData {
@@ -37,6 +38,7 @@ const SPAWN_SPREAD_TILES = 2;
 export class GameScene extends Phaser.Scene {
   private player?: Player;
   private seats?: SeatInteraction;
+  private follow?: FollowPlayer;
   private session?: Session;
   private readonly remotes = new Map<string, RemotePlayer>();
   private unsubscribers: Array<() => void> = [];
@@ -76,6 +78,9 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, collisionLayer);
     this.seats = new SeatInteraction(this, this.player, session);
+    this.follow = new FollowPlayer(this.player, collisionLayer, session, this.seats, (id) =>
+      this.remotes.get(id),
+    );
 
     const camera = this.cameras.main;
     camera.setBounds(0, 0, worldWidth, worldHeight);
@@ -97,12 +102,13 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleShutdown, this);
   }
 
-  update(time: number) {
+  update(time: number, delta: number) {
     const player = this.player;
-    if (!player || !this.seats) return;
+    if (!player || !this.seats || !this.follow) return;
 
+    this.follow.beforeUpdate();
     const locked = this.seats.update();
-    if (!locked) {
+    if (!locked && !this.follow.update(time, delta)) {
       const { dx, dy } = player.readDirection();
       player.move(dx, dy);
     }
@@ -275,6 +281,7 @@ export class GameScene extends Phaser.Scene {
     this.unsubscribers = [];
     this.seats?.destroy();
     this.seats = undefined;
+    this.follow = undefined;
     this.clearRemotes();
     this.player?.destroy();
     this.player = undefined;

@@ -56,7 +56,13 @@ export function TablePanel({ session, state }: TablePanelProps) {
       {call.error && <p className="rounded bg-amber-900/50 px-2 py-1 text-[11px] text-amber-200">{call.error}</p>}
 
       <div className="grid shrink-0 grid-cols-2 gap-1.5 overflow-y-auto sm:max-h-[45%]">
-        <VideoTile name={self?.name ?? session.name} stream={call.localStream} mic={call.mic} cam={call.cam} self />
+        <VideoTile
+          name={self?.name ?? session.name}
+          stream={call.localStream}
+          mic={call.mic && call.hasMic}
+          cam={call.cam && call.hasCam}
+          self
+        />
         {others.map((p) => (
           <VideoTile
             key={p.id}
@@ -65,6 +71,7 @@ export function TablePanel({ session, state }: TablePanelProps) {
             mic={p.media.mic}
             cam={p.media.cam}
             status={call.peerStatus[p.id] ?? "connecting"}
+            volume={call.outputVolume}
           />
         ))}
       </div>

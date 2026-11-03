@@ -12,11 +12,14 @@ export interface PlayerOptions {
 
 type MovementKeys = Record<"up" | "down" | "left" | "right", Phaser.Input.Keyboard.Key[]>;
 
+const NON_TEXT_INPUTS = new Set(["range", "checkbox", "radio", "button", "submit", "reset", "color", "file"]);
+
 /** Foco num campo de texto (ex.: chat): o teclado não deve controlar o jogo. */
 export function isTypingInForm(): boolean {
   const el = document.activeElement;
   return (
-    el instanceof HTMLInputElement ||
+    // Sliders, checkboxes etc. não recebem texto: o jogo continua respondendo.
+    (el instanceof HTMLInputElement && !NON_TEXT_INPUTS.has(el.type)) ||
     el instanceof HTMLTextAreaElement ||
     (el instanceof HTMLElement && el.isContentEditable)
   );
@@ -53,6 +56,33 @@ export class Player extends Character {
       dx: down(this.keys.right) - down(this.keys.left),
       dy: down(this.keys.down) - down(this.keys.up),
     };
+  }
+
+  /** Teclas de movimento pressionadas neste frame. */
+  wantsToMove(): boolean {
+    const { dx, dy } = this.readDirection();
+    return dx !== 0 || dy !== 0;
+  }
+
+  /**
+   * Anda em direção a um ponto (coordenadas dos pés, o centro da hitbox).
+   * Reduz a velocidade no último passo para não passar do ponto.
+   * Devolve true quando chegou.
+   */
+  steerTo(x: number, y: number, deltaMs: number): boolean {
+    const { center } = this.body;
+    const vx = x - center.x;
+    const vy = y - center.y;
+    const sx = Math.abs(vx) < 1 ? 0 : Math.sign(vx);
+    const sy = Math.abs(vy) < 1 ? 0 : Math.sign(vy);
+    if (sx === 0 && sy === 0) return true;
+
+    this.move(sx, sy);
+    const dt = Math.max(deltaMs, 1) / 1000;
+    const velocity = this.body.velocity;
+    if (sx !== 0 && Math.abs(velocity.x * dt) > Math.abs(vx)) velocity.x = vx / dt;
+    if (sy !== 0 && Math.abs(velocity.y * dt) > Math.abs(vy)) velocity.y = vy / dt;
+    return false;
   }
 
   /** "E" pressionado neste frame. */

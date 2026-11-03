@@ -1,5 +1,6 @@
 import type { MediaState, SignalData } from "@/shared/protocol";
 import { Emitter } from "./Emitter";
+import { loadMediaPrefs, MAX_INPUT_VOLUME, saveMediaPrefs } from "./mediaPrefs";
 
 export type PeerStatus = "connecting" | "connected" | "reconnecting" | "failed";
 
@@ -9,10 +10,16 @@ export interface CallState {
   localStream: MediaStream | null;
   remoteStreams: Record<string, MediaStream>;
   peerStatus: Record<string, PeerStatus>;
+  /** Preferência: microfone ligado (vale também antes de ter mídia). */
   mic: boolean;
+  /** Preferência: câmera ligada. */
   cam: boolean;
   hasMic: boolean;
   hasCam: boolean;
+  /** Ganho do microfone (0–2). */
+  inputVolume: number;
+  /** Volume de quem está na mesa (0–1). */
+  outputVolume: number;
   error: string | null;
 }
 
@@ -21,12 +28,24 @@ export const INITIAL_CALL_STATE: CallState = {
   localStream: null,
   remoteStreams: {},
   peerStatus: {},
-  mic: false,
-  cam: false,
+  mic: true,
+  cam: true,
   hasMic: false,
   hasCam: false,
+  inputVolume: 1,
+  outputVolume: 1,
   error: null,
 };
+
+/** Cadeia de áudio do microfone: permite ajustar o ganho e medir o nível. */
+interface MicChain {
+  context: AudioContext;
+  gain: GainNode;
+  analyser: AnalyserNode;
+  samples: Uint8Array<ArrayBuffer>;
+  /** Trilhas originais do getUserMedia (paradas ao liberar). */
+  rawTracks: MediaStreamTrack[];
+}
 
 type CallEvents = {
   change: CallState;
@@ -84,6 +103,7 @@ export class TableCall extends Emitter<CallEvents> {
   /** Invalida capturas de mídia em andamento quando a mídia é liberada. */
   private mediaToken = 0;
   private releaseTimer: ReturnType<typeof setTimeout> | null = null;
+  private micChain: MicChain | null = null;
 
   constructor(
     private readonly getSelfId: () => string | null,
@@ -91,6 +111,8 @@ export class TableCall extends Emitter<CallEvents> {
     private readonly sendSignal: (to: string, data: SignalData) => void,
   ) {
     super();
+    const prefs = typeof window === "undefined" ? null : loadMediaPrefs();
+    if (prefs) this.state = { ...this.state, ...prefs };
   }
 
   getState() {
@@ -152,6 +174,28 @@ export class TableCall extends Emitter<CallEvents> {
     this.setTrackEnabled("video", !this.state.cam);
   }
 
+  setInputVolume(volume: number) {
+    const inputVolume = Math.min(MAX_INPUT_VOLUME, Math.max(0, volume));
+    if (this.micChain) this.micChain.gain.gain.setTargetAtTime(inputVolume, this.micChain.context.currentTime, 0.02);
+    this.update({ inputVolume });
+    this.savePrefs();
+  }
+
+  setOutputVolume(volume: number) {
+    this.update({ outputVolume: Math.min(1, Math.max(0, volume)) });
+    this.savePrefs();
+  }
+
+  /** Nível atual do microfone (0–1), já com o ganho aplicado. 0 sem microfone. */
+  getInputLevel(): number {
+    const mic = this.micChain;
+    if (!mic || !this.state.mic) return 0;
+    mic.analyser.getByteTimeDomainData(mic.samples);
+    let sum = 0;
+    for (const v of mic.samples) sum += ((v - 128) / 128) ** 2;
+    return Math.min(1, Math.sqrt(sum / mic.samples.length) * 4);
+  }
+
   dispose() {
     for (const id of [...this.peers.keys()]) this.closePeer(id);
     this.releaseMedia();
@@ -199,9 +243,15 @@ export class TableCall extends Emitter<CallEvents> {
       return null;
     }
 
+    if (stream) stream = this.withMicChain(stream);
+
     // Dicas para o codificador: voz e movimento (prioriza fluidez).
     stream?.getAudioTracks().forEach((t) => (t.contentHint = "speech"));
     stream?.getVideoTracks().forEach((t) => (t.contentHint = "motion"));
+
+    // Aplica as preferências (ex.: entrar com a câmera desligada).
+    stream?.getAudioTracks().forEach((t) => (t.enabled = this.state.mic));
+    stream?.getVideoTracks().forEach((t) => (t.enabled = this.state.cam));
 
     const hasMic = !!stream?.getAudioTracks().length;
     const hasCam = !!stream?.getVideoTracks().length;
@@ -209,12 +259,44 @@ export class TableCall extends Emitter<CallEvents> {
       localStream: stream,
       hasMic,
       hasCam,
-      mic: hasMic,
-      cam: hasCam,
       error: stream ? null : "Sem acesso à câmera/microfone. Você ainda pode ouvir, ver e usar o chat.",
     });
-    this.emit("media", { mic: hasMic, cam: hasCam });
+    this.emitMedia();
     return stream;
+  }
+
+  /**
+   * Passa o microfone por um GainNode (volume de entrada) e um AnalyserNode
+   * (medidor). Devolve um stream com a trilha de áudio processada + o vídeo.
+   * Sem Web Audio, devolve o stream original.
+   */
+  private withMicChain(stream: MediaStream): MediaStream {
+    const [rawAudio] = stream.getAudioTracks();
+    if (!rawAudio || typeof AudioContext === "undefined") return stream;
+    try {
+      const context = new AudioContext();
+      const source = context.createMediaStreamSource(new MediaStream([rawAudio]));
+      const gain = context.createGain();
+      gain.gain.value = this.state.inputVolume;
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      const destination = context.createMediaStreamDestination();
+      source.connect(gain);
+      gain.connect(analyser);
+      gain.connect(destination);
+      void context.resume().catch(() => {});
+
+      this.micChain = {
+        context,
+        gain,
+        analyser,
+        samples: new Uint8Array(analyser.fftSize),
+        rawTracks: stream.getTracks(),
+      };
+      return new MediaStream([...destination.stream.getAudioTracks(), ...stream.getVideoTracks()]);
+    } catch {
+      return stream;
+    }
   }
 
   private releaseMedia() {
@@ -222,21 +304,36 @@ export class TableCall extends Emitter<CallEvents> {
     this.releaseTimer = null;
     const hadMedia = this.mediaPromise !== null;
     this.state.localStream?.getTracks().forEach((t) => t.stop());
+    this.micChain?.rawTracks.forEach((t) => t.stop());
+    void this.micChain?.context.close().catch(() => {});
+    this.micChain = null;
     this.mediaPromise = null;
     this.mediaToken++;
     if (hadMedia) {
-      this.update({ localStream: null, mic: false, cam: false, hasMic: false, hasCam: false, error: null });
-      this.emit("media", { mic: false, cam: false });
+      this.update({ localStream: null, hasMic: false, hasCam: false, error: null });
+      this.emitMedia();
     }
   }
 
+  /** Muda a preferência e, se houver mídia, liga/desliga a trilha (sem renegociar). */
   private setTrackEnabled(kind: "audio" | "video", enabled: boolean) {
     const stream = this.state.localStream;
     const tracks = kind === "audio" ? stream?.getAudioTracks() : stream?.getVideoTracks();
-    if (!tracks?.length) return;
-    tracks.forEach((t) => (t.enabled = enabled));
+    tracks?.forEach((t) => (t.enabled = enabled));
     this.update(kind === "audio" ? { mic: enabled } : { cam: enabled });
-    this.emit("media", { mic: this.state.mic, cam: this.state.cam });
+    this.savePrefs();
+    this.emitMedia();
+  }
+
+  /** O que os outros veem: ligado só se a preferência está ativa e o dispositivo existe. */
+  private emitMedia() {
+    const { mic, cam, hasMic, hasCam } = this.state;
+    this.emit("media", { mic: mic && hasMic, cam: cam && hasCam });
+  }
+
+  private savePrefs() {
+    const { mic, cam, inputVolume, outputVolume } = this.state;
+    saveMediaPrefs({ mic, cam, inputVolume, outputVolume });
   }
 
   // --- conexões ----------------------------------------------------------

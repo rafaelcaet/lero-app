@@ -12,6 +12,8 @@ interface VideoTileProps {
   status?: PeerStatus;
   /** O próprio usuário: sem áudio local (evita eco) e espelhado. */
   self?: boolean;
+  /** Volume de reprodução (0–1). */
+  volume?: number;
 }
 
 const STATUS_TEXT: Record<Exclude<PeerStatus, "connected">, string> = {
@@ -20,7 +22,7 @@ const STATUS_TEXT: Record<Exclude<PeerStatus, "connected">, string> = {
   failed: "Sem conexão de mídia (a rede pode exigir TURN)",
 };
 
-export function VideoTile({ name, stream, mic, cam, status, self = false }: VideoTileProps) {
+export function VideoTile({ name, stream, mic, cam, status, self = false, volume = 1 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
@@ -38,6 +40,10 @@ export function VideoTile({ name, stream, mic, cam, status, self = false }: Vide
       () => setAutoplayBlocked(!self),
     );
   }, [stream, self]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.volume = Math.min(1, Math.max(0, volume));
+  }, [volume, stream]);
 
   const showVideo = cam && !!stream;
   const statusText = status && status !== "connected" ? STATUS_TEXT[status] : null;
