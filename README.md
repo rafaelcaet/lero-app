@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gather Clone
 
-## Getting Started
+Escritório 2D top-down (Next.js + Phaser 3) com cadeiras, chat de mesa e
+chamada de voz/vídeo (WebRTC) entre quem senta na mesma mesa.
 
-First, run the development server:
+## Rodar localmente
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev                 # http://localhost:3000
+pnpm build && pnpm start # produção
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Um único processo (`server/main.mts`) serve o site **e** o WebSocket do jogo (`/ws`)
+na mesma porta.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deixar outras pessoas entrarem
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Câmera e microfone só funcionam em **HTTPS** (ou `localhost`). Acessar pelo IP da
+rede (`http://192.168...`) funciona para andar e conversar por texto, mas o
+navegador bloqueia câmera/microfone.
 
-## Learn More
+### Opção 1 — Link temporário (túnel, a partir do seu computador)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm build && pnpm start   # terminal 1
+pnpm share                 # terminal 2 → imprime https://xxxx.trycloudflare.com
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Envie o link `https://...trycloudflare.com`. Funciona enquanto os dois comandos
+estiverem rodando. Requer o [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+> Também funciona com `pnpm dev` (o domínio `*.trycloudflare.com` já é liberado).
+> Para outro túnel (ex.: ngrok), libere o domínio: `ALLOWED_DEV_ORIGINS="*.ngrok-free.app" pnpm dev`.
+> Sem isso, o Next bloqueia os scripts (403) e a página abre sem funcionar.
 
-## Deploy on Vercel
+### Opção 2 — Hospedagem permanente (Docker)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Qualquer serviço que rode containers e suporte WebSocket (Railway, Render, Fly.io,
+uma VPS…). **A Vercel não serve**: ela não mantém servidores WebSocket.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker build -t gather-clone .
+docker run -p 3000:3000 gather-clone
+```
+
+Coloque HTTPS na frente (a maioria dos serviços já faz isso automaticamente).
+
+### TURN (recomendado para uso pela internet)
+
+Sem TURN, a chamada se conecta direto entre os navegadores (STUN). Isso funciona na
+maioria das redes, mas falha em algumas corporativas ou móveis. Configure um servidor
+TURN (ex.: coturn próprio ou um serviço gerenciado) via variável de ambiente:
+
+```bash
+ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.exemplo.com:3478","username":"usuario","credential":"senha"}]' pnpm start
+```
+
+### Variáveis de ambiente
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `PORT` | `3000` | Porta HTTP/WebSocket |
+| `HOST` | `0.0.0.0` | Interface de rede |
+| `ICE_SERVERS` | STUN do Google | Servidores STUN/TURN (JSON) enviados aos clientes |
+| `ALLOWED_ORIGINS` | qualquer | Origens aceitas no WebSocket, separadas por vírgula |
+| `ALLOWED_DEV_ORIGINS` | — | Domínios externos liberados no `pnpm dev` |
+| `NEXT_PUBLIC_WS_URL` | mesma origem `/ws` | WebSocket em outro endereço (build) |
+
+## Limites conhecidos
+
+- O estado (jogadores, cadeiras) fica na memória de **um** processo: rode uma única instância.
+- A chamada é em malha (cada pessoa conecta com todas da mesa): ideal até ~4–5 pessoas por mesa.
+# lero-app
