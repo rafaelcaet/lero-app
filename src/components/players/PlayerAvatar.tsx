@@ -1,16 +1,26 @@
-import { cssColor, paletteOf } from "@/game/characters/characterPalettes";
+import { portraitUrl } from "@/components/character/characterImage";
+import { cssColor, OUTFIT_COLORS, type Appearance } from "@/shared/appearance";
 
-/** Círculo com a cor da camisa do personagem e a inicial do nome. */
-export function PlayerAvatar({ name, colorIndex, size = "md" }: { name: string; colorIndex: number; size?: "md" | "lg" }) {
-  const palette = paletteOf(colorIndex);
-  const dimensions = size === "lg" ? "h-14 w-14 text-xl" : "h-8 w-8 text-sm";
+/** Círculo com o rosto do personagem (pixel art) sobre a cor da roupa. */
+export function PlayerAvatar({
+  name,
+  appearance,
+  size = "md",
+}: {
+  name: string;
+  appearance: Appearance;
+  size?: "md" | "lg";
+}) {
+  const dimensions = size === "lg" ? "h-14 w-14" : "h-8 w-8";
   return (
     <span
       aria-hidden
-      className={`${dimensions} flex shrink-0 items-center justify-center rounded-full font-semibold text-white ring-2 ring-black/20`}
-      style={{ backgroundColor: cssColor(palette.shirt) }}
+      title={name}
+      className={`${dimensions} flex shrink-0 items-end justify-center overflow-hidden rounded-full ring-2 ring-black/20`}
+      style={{ backgroundColor: `color-mix(in srgb, ${cssColor(OUTFIT_COLORS[appearance.outfitColor].color)} 45%, #f4f0e6)` }}
     >
-      {name.trim().charAt(0).toUpperCase() || "?"}
+      {/* eslint-disable-next-line @next/next/no-img-element -- data URL gerada no cliente */}
+      <img src={portraitUrl(appearance)} alt="" className="h-[95%] w-[95%] [image-rendering:pixelated]" />
     </span>
   );
 }

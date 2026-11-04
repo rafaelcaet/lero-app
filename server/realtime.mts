@@ -17,12 +17,12 @@ import {
   type PlayerState,
   type ServerMessage,
 } from "../src/shared/protocol.ts";
+import { sanitizeAppearance } from "../src/shared/appearance.ts";
 
 /** Mensagens por segundo aceitas de cada conexão (acima disso, descarta). */
 const MAX_MESSAGES_PER_SECOND = 60;
 const WORLD_W = MAP_WIDTH * TILE_SIZE;
 const WORLD_H = MAP_HEIGHT * TILE_SIZE;
-const COLOR_COUNT = 6;
 const FACINGS: ReadonlySet<string> = new Set<Facing>(["down", "left", "right", "up"]);
 
 const seats = new Map<string, Seat>(computeSeats(createOfficeLayout()).map((s) => [s.id, s]));
@@ -38,7 +38,6 @@ interface Client {
   state: PlayerState | null; // null até o "join"
 }
 const clients = new Map<string, Client>();
-let colorCounter = 0;
 
 // --- envio ---------------------------------------------------------------
 
@@ -108,7 +107,7 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
     client.state = {
       id,
       name,
-      colorIndex: colorCounter++ % COLOR_COUNT,
+      appearance: sanitizeAppearance(msg.appearance),
       x: isNum(msg.x) ? clamp(msg.x, 0, WORLD_W) : WORLD_W / 2,
       y: isNum(msg.y) ? clamp(msg.y, 0, WORLD_H) : WORLD_H / 2,
       facing: "down",

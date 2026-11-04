@@ -1,4 +1,5 @@
 import { tableIdOfSeat } from "@/game/maps/officeSeats";
+import { DEFAULT_APPEARANCE, sanitizeAppearance, type Appearance } from "@/shared/appearance";
 import {
   WS_PATH,
   type ChatMessage,
@@ -15,9 +16,9 @@ import { INITIAL_CALL_STATE, TableCall, type CallState } from "./TableCall";
 /** Conversa de DM com outro jogador (só em memória, nesta aba). */
 export interface DmConversation {
   peerId: string;
-  /** Nome e cor guardados para a conversa continuar legível se a pessoa sair. */
+  /** Nome e aparência guardados para a conversa continuar legível se a pessoa sair. */
   peerName: string;
-  colorIndex: number;
+  appearance: Appearance;
   messages: readonly DirectMessage[];
   unread: number;
 }
@@ -33,6 +34,15 @@ export interface SessionState {
   followTargetId: string | null;
   /** Conversas de DM por id do outro jogador. */
   dms: Readonly<Record<string, DmConversation>>;
+}
+
+/**
+ * Garante uma aparência válida. Se o servidor não mandar o campo (ex.: versão
+ * desatualizada), usa `fallback` — para o próprio jogador, a escolha local.
+ */
+function withAppearance(player: PlayerState, fallback: Appearance): PlayerState {
+  const appearance = player.appearance ? sanitizeAppearance(player.appearance) : fallback;
+  return { ...player, appearance };
 }
 
 /** Quantas conversas têm mensagens não lidas. */
@@ -84,6 +94,7 @@ export function selectTable(state: SessionState) {
 export class Session {
   readonly events = new Emitter<SessionEvents>();
   readonly name: string;
+  readonly appearance: Appearance;
 
   private state: SessionState = INITIAL_STATE;
   private readonly listeners = new Set<() => void>();
@@ -94,8 +105,9 @@ export class Session {
   private iceServers: RTCIceServer[] = [];
   private joined = false;
 
-  constructor(name: string, url: string) {
+  constructor(name: string, appearance: Appearance, url: string) {
     this.name = name;
+    this.appearance = appearance;
     this.net = new NetworkClient(url);
   }
 
@@ -228,7 +240,7 @@ export class Session {
   private trySendJoin() {
     if (this.joined || !this.lastPosition || this.state.status !== "open") return;
     this.joined = true;
-    this.net.send({ type: "join", name: this.name, ...this.lastPosition });
+    this.net.send({ type: "join", name: this.name, appearance: this.appearance, ...this.lastPosition });
   }
 
   private handleStatus(status: ConnectionStatus) {
@@ -256,12 +268,14 @@ export class Session {
         this.iceServers = msg.iceServers ?? [];
         this.setState({
           selfId: msg.selfId,
-          players: Object.fromEntries(msg.players.map((p) => [p.id, p])),
+          players: Object.fromEntries(
+            msg.players.map((p) => [p.id, withAppearance(p, p.id === msg.selfId ? this.appearance : DEFAULT_APPEARANCE)]),
+          ),
           chat: [],
         });
         break;
       case "player-joined":
-        this.setState({ players: { ...players, [msg.player.id]: msg.player } });
+        this.setState({ players: { ...players, [msg.player.id]: withAppearance(msg.player, DEFAULT_APPEARANCE) } });
         break;
       case "player-left": {
         const next = { ...players };
@@ -315,7 +329,7 @@ export class Session {
     const conversation: DmConversation = {
       peerId,
       peerName: peer?.name ?? current?.peerName ?? message.fromName,
-      colorIndex: peer?.colorIndex ?? current?.colorIndex ?? 0,
+      appearance: peer?.appearance ?? current?.appearance ?? DEFAULT_APPEARANCE,
       messages: [...(current?.messages ?? []), message].slice(-MAX_DM_HISTORY),
       unread: (current?.unread ?? 0) + (incoming ? 1 : 0),
     };

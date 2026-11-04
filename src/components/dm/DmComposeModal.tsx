@@ -45,7 +45,7 @@ export function DmComposeModal({ player, onSend, onClose }: DmComposeModalProps)
         </button>
 
         <div className="flex items-center gap-3 pr-6">
-          <PlayerAvatar name={player.name} colorIndex={player.colorIndex} />
+          <PlayerAvatar name={player.name} appearance={player.appearance} />
           <div className="min-w-0">
             <h2 id="dm-compose-title" className="truncate font-display text-lg font-semibold text-neutral-50">
               Mensagem para {player.name}

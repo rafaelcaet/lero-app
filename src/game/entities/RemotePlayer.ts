@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 import type { PlayerState } from "@/shared/protocol";
-import { characterTextureKey } from "../characters/characterSprites";
+import { ensureCharacterTexture } from "../characters/characterSprites";
 import { SEAT_BY_ID } from "../maps/officeSeats";
 import { Character } from "./Character";
 
@@ -16,7 +16,7 @@ export class RemotePlayer extends Character {
       x: state.x,
       y: state.y,
       speed: 0,
-      textureKey: characterTextureKey(state.colorIndex),
+      textureKey: ensureCharacterTexture(scene, state.appearance),
       facing: state.facing,
       name: state.name,
     });

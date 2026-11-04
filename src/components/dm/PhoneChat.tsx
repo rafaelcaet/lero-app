@@ -159,7 +159,7 @@ function ChatListScreen({ state, onOpen }: { state: SessionState; onOpen: (peerI
                   className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-white/5"
                 >
                   <span className="relative">
-                    <PlayerAvatar name={c.peerName} colorIndex={c.colorIndex} size="lg" />
+                    <PlayerAvatar name={c.peerName} appearance={c.appearance} size="lg" />
                     {online && (
                       <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-[#0b141a]" />
                     )}
@@ -242,7 +242,7 @@ function ConversationScreen({
         >
           <ArrowLeftIcon size={20} />
         </button>
-        <PlayerAvatar name={conversation.peerName} colorIndex={conversation.colorIndex} />
+        <PlayerAvatar name={conversation.peerName} appearance={conversation.appearance} />
         <div className="min-w-0">
           <p className="truncate font-display text-base font-semibold leading-tight">{conversation.peerName}</p>
           <p className={`text-xs ${online ? "text-emerald-400" : "text-neutral-500"}`}>

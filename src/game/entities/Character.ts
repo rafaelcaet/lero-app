@@ -83,9 +83,10 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
         .text(this.x, this.y, name, {
           fontFamily: "monospace",
           fontSize: "8px",
-          color: "#ffffff",
-          backgroundColor: "#00000088",
-          padding: { x: 2, y: 1 },
+          fontStyle: "bold",
+          color: "#f8f8f8",
+          backgroundColor: "#283048d0",
+          padding: { x: 3, y: 1 },
           resolution: 4,
         })
         .setOrigin(0.5, 1);
@@ -145,7 +146,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
     super.preUpdate(time, delta);
     // Ordenação por profundidade (quem está mais abaixo aparece na frente).
     this.setDepth(10 + this.y / 1000);
-    this.nameTag?.setPosition(Math.round(this.x), Math.round(this.y - 15)).setDepth(this.depth + 1);
+    this.nameTag?.setPosition(Math.round(this.x), Math.round(this.y - 17)).setDepth(this.depth + 1);
   }
 
   override destroy(fromScene?: boolean) {

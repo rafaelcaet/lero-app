@@ -2,6 +2,7 @@
  * Protocolo WebSocket compartilhado entre cliente e servidor.
  * Só tipos e constantes puras: importável pelo Node (server/) e pelo Next.
  */
+import type { Appearance } from "./appearance.ts";
 
 /** Caminho do WebSocket do jogo (mesma origem do site). */
 export const WS_PATH = "/ws";
@@ -25,7 +26,7 @@ export interface MediaState {
 export interface PlayerState {
   id: string;
   name: string;
-  colorIndex: number;
+  appearance: Appearance;
   x: number;
   y: number;
   facing: Facing;
@@ -59,7 +60,7 @@ export type SignalData =
   | { kind: "candidate"; candidate: RTCIceCandidateInit };
 
 export type ClientMessage =
-  | { type: "join"; name: string; x: number; y: number }
+  | { type: "join"; name: string; appearance: Appearance; x: number; y: number }
   | { type: "move"; x: number; y: number; facing: Facing; anim: MoveAnim }
   | { type: "sit"; seatId: string }
   | { type: "stand" }

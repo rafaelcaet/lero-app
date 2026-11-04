@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 import type { ServerMessage } from "@/shared/protocol";
 import type { Session } from "@/session/Session";
-import { characterTextureKey } from "../characters/characterSprites";
+import { ensureCharacterTexture } from "../characters/characterSprites";
 import {
   ASSET_KEYS,
   CAMERA_ZOOM,
@@ -72,7 +72,7 @@ export class GameScene extends Phaser.Scene {
       x: map.tileToWorldX(spawnTile.x)! + TILE_SIZE / 2,
       // Desloca para cima para que a hitbox (nos pés) fique dentro do tile.
       y: map.tileToWorldY(spawnTile.y)! + TILE_SIZE / 2 + FEET_OFFSET_Y,
-      textureKey: characterTextureKey(0),
+      textureKey: ensureCharacterTexture(this, session.appearance),
       name: session.name,
     });
 
@@ -161,7 +161,7 @@ export class GameScene extends Phaser.Scene {
     this.clearRemotes();
     if (!state?.selfId) return;
     const self = state.players[state.selfId];
-    if (self) this.player?.setSkin(characterTextureKey(self.colorIndex));
+    if (self) this.player?.setSkin(ensureCharacterTexture(this, self.appearance));
     for (const id of Object.keys(state.players)) this.addRemote(id);
   }
 

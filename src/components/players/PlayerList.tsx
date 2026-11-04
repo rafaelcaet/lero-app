@@ -91,7 +91,7 @@ function ExpandedList({ session, state, players, onSelect, onToggleCollapsed }: 
             const content = (
               <>
                 <span className="relative">
-                  <PlayerAvatar name={player.name} colorIndex={player.colorIndex} />
+                  <PlayerAvatar name={player.name} appearance={player.appearance} />
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-neutral-900" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -170,7 +170,7 @@ function CollapsedRail({ session, state, players, onSelect, onToggleCollapsed }:
           const unread = state.dms[player.id]?.unread ?? 0;
           const avatar = (
             <span className="relative block">
-              <PlayerAvatar name={player.name} colorIndex={player.colorIndex} />
+              <PlayerAvatar name={player.name} appearance={player.appearance} />
               {unread > 0 ? (
                 <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-neutral-950 ring-2 ring-neutral-900">
                   {unread}

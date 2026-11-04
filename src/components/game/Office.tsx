@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { resolveServerUrl, Session, unreadConversations } from "@/session/Session";
 import { useSessionState } from "@/session/useSession";
+import type { Appearance } from "@/shared/appearance";
 import { DmComposeModal } from "@/components/dm/DmComposeModal";
 import { MiniPhone } from "@/components/dm/MiniPhone";
 import { PhoneChat } from "@/components/dm/PhoneChat";
@@ -30,9 +31,9 @@ function readCollapsed(): boolean {
 }
 
 /** O escritório: jogo, barra lateral, chamada da mesa e mensagens diretas. */
-export function Office({ name }: { name: string }) {
+export function Office({ name, appearance }: { name: string; appearance: Appearance }) {
   // Construir a sessão não conecta; a conexão abre/fecha no efeito (seguro em Strict Mode).
-  const [session] = useState(() => new Session(name, resolveServerUrl()));
+  const [session] = useState(() => new Session(name, appearance, resolveServerUrl()));
   const state = useSessionState(session);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [listOpen, setListOpen] = useState(false);
