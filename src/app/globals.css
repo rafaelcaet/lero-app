@@ -47,7 +47,18 @@ canvas {
   animation: phone-pop 0.22s ease-out;
 }
 
+/* Troca de conteúdo da barra lateral (recolhida ↔ expandida). */
+@keyframes sidebar-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-sidebar-fade {
+  animation: sidebar-fade 0.18s ease-out 0.06s both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .animate-sidebar-fade,
   .animate-phone-buzz,
   .animate-phone-pop {
     animation: none;

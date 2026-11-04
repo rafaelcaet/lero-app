@@ -25,9 +25,15 @@ export function GameCanvas({ session }: { session: Session }) {
       game = createGame(container, session);
     });
 
-    // O Phaser só percebe mudanças de tamanho da janela; quando só a área do jogo
-    // muda (ex.: barra lateral recolhida/expandida), avisa na hora.
-    const observer = new ResizeObserver(() => game?.scale.refresh());
+    // O Phaser só confere o tamanho da área a cada 500 ms; quando ela muda
+    // (ex.: barra lateral animando), redimensiona a cada quadro da animação.
+    // Redimensionar um canvas WebGL apaga o conteúdo (fica preto) até o próximo
+    // quadro do jogo; por isso redesenha já, antes de o navegador pintar a tela.
+    const observer = new ResizeObserver(() => {
+      if (!game?.scale.getParentBounds()) return;
+      game.scale.refresh();
+      redrawNow(game);
+    });
     observer.observe(container);
 
     return () => {
@@ -39,4 +45,13 @@ export function GameCanvas({ session }: { session: Session }) {
   }, [session]);
 
   return <div ref={containerRef} className="h-full w-full overflow-hidden" aria-label="Área do jogo" />;
+}
+
+/** Só desenha (sem avançar a lógica do jogo), no tamanho novo do canvas. */
+function redrawNow(game: Phaser.Game) {
+  const renderer = game.renderer;
+  if (!renderer || game.isPaused) return;
+  renderer.preRender();
+  game.scene.render(renderer);
+  renderer.postRender();
 }

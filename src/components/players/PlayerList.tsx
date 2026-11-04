@@ -36,11 +36,20 @@ export function PlayerList(props: PlayerListProps) {
   return (
     <aside
       aria-label="Jogadores online"
-      className={`flex min-h-0 flex-col bg-neutral-900 text-neutral-200 transition-[width] duration-200 ${
+      className={`flex min-h-0 flex-col overflow-hidden bg-neutral-900 text-neutral-200 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
         collapsed ? "md:w-16" : "md:w-64"
       } ${props.className ?? ""}`}
     >
-      {collapsed ? <CollapsedRail {...props} players={players} /> : <ExpandedList {...props} players={players} />}
+      {/*
+        Conteúdo com largura fixa: não se espreme enquanto a barra anima,
+        só é recortado. A troca entre os estados entra com um fade curto.
+      */}
+      <div
+        key={collapsed ? "rail" : "list"}
+        className={`animate-sidebar-fade flex h-full min-h-0 shrink-0 flex-col ${collapsed ? "w-16" : "w-72 md:w-64"}`}
+      >
+        {collapsed ? <CollapsedRail {...props} players={players} /> : <ExpandedList {...props} players={players} />}
+      </div>
     </aside>
   );
 }
