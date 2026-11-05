@@ -3,6 +3,7 @@
  * Só tipos e constantes puras: importável pelo Node (server/) e pelo Next.
  */
 import type { Appearance } from "./appearance.ts";
+import type { PetKind, RideKind, ShopItemId, Wallet } from "./shop.ts";
 
 /** Caminho do WebSocket do jogo (mesma origem do site). */
 export const WS_PATH = "/ws";
@@ -33,6 +34,10 @@ export interface PlayerState {
   anim: MoveAnim;
   seatId: string | null;
   media: MediaState;
+  /** Veículo em uso (alugado na loja). */
+  ride: RideKind | null;
+  /** Mascote alugado que segue o jogador. */
+  pet: PetKind | null;
 }
 
 export interface ChatMessage {
@@ -60,16 +65,29 @@ export type SignalData =
   | { kind: "candidate"; candidate: RTCIceCandidateInit };
 
 export type ClientMessage =
-  | { type: "join"; name: string; appearance: Appearance; x: number; y: number }
+  | {
+      type: "join";
+      name: string;
+      appearance: Appearance;
+      x: number;
+      y: number;
+      /** Chave da carteira guardada no navegador (mantém as Lerocoins entre visitas). */
+      walletKey?: string;
+    }
   | { type: "move"; x: number; y: number; facing: Facing; anim: MoveAnim }
   | { type: "sit"; seatId: string }
   | { type: "stand" }
   | { type: "chat"; text: string }
   | { type: "dm"; to: string; text: string }
   | { type: "media"; media: MediaState }
-  | { type: "signal"; to: string; data: SignalData };
+  | { type: "signal"; to: string; data: SignalData }
+  | { type: "rent"; item: ShopItemId }
+  /** Sobe/desce do veículo. null = andar a pé. */
+  | { type: "equip"; ride: RideKind | null };
 
 export type SitRejectReason = "occupied" | "too-far" | "unknown-seat";
+
+export type RentRejectReason = "no-coins" | "max-time";
 
 export type ServerMessage =
   | { type: "welcome"; selfId: string; players: PlayerState[]; iceServers: RTCIceServer[] }
@@ -82,4 +100,8 @@ export type ServerMessage =
   | { type: "chat"; message: ChatMessage }
   /** Enviada ao destinatário e devolvida ao remetente (confirma o envio). */
   | { type: "dm"; message: DirectMessage }
-  | { type: "signal"; from: string; data: SignalData };
+  | { type: "signal"; from: string; data: SignalData }
+  /** Carteira do próprio jogador. `serverNow` permite corrigir a diferença de relógio. */
+  | { type: "wallet"; wallet: Wallet; serverNow: number }
+  | { type: "rent-rejected"; item: ShopItemId; reason: RentRejectReason }
+  | { type: "player-gear"; id: string; ride: RideKind | null; pet: PetKind | null };

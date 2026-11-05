@@ -57,7 +57,27 @@ canvas {
   animation: sidebar-fade 0.18s ease-out 0.06s both;
 }
 
+/* "+1" subindo ao ganhar Lerocoins. */
+@keyframes coin-gain {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-14px); }
+}
+
+.animate-coin-gain {
+  animation: coin-gain 0.9s ease-out forwards;
+}
+
+@keyframes coin-fade {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  /* Sem movimento: só some. */
+  .animate-coin-gain {
+    animation-name: coin-fade;
+  }
+
   .animate-sidebar-fade,
   .animate-phone-buzz,
   .animate-phone-pop {

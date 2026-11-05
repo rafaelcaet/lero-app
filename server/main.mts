@@ -13,6 +13,7 @@
  *   ICE_SERVERS       JSON com servidores STUN/TURN, ex.:
  *                     [{"urls":"turn:turn.exemplo.com:3478","username":"u","credential":"s"}]
  *   ALLOWED_ORIGINS   origens aceitas no WebSocket, separadas por vírgula (opcional)
+ *   WALLETS_FILE      onde salvar as Lerocoins (padrão .data/wallets.json; vazio = só memória)
  */
 import { EventEmitter } from "node:events";
 import { createServer, type Server } from "node:http";
@@ -27,6 +28,7 @@ const host = process.env.HOST ?? "0.0.0.0";
 
 const iceServers = parseIceServers(process.env.ICE_SERVERS);
 const allowedOrigins = parseList(process.env.ALLOWED_ORIGINS);
+const walletsFile = process.env.WALLETS_FILE ?? ".data/wallets.json";
 
 // O Next se registra sozinho no evento "upgrade" do servidor que recebe. Damos a ele
 // um emissor próprio para que só receba os upgrades que não são do jogo (ex.: HMR).
@@ -35,7 +37,7 @@ const app = next({ dev, hostname: host, port, httpServer: nextUpgrades as unknow
 await app.prepare();
 
 const handleRequest = app.getRequestHandler();
-const realtime = createRealtimeServer({ iceServers, allowedOrigins });
+const realtime = createRealtimeServer({ iceServers, allowedOrigins, walletsFile });
 
 const server = createServer((req, res) => {
   void handleRequest(req, res);

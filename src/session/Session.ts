@@ -7,8 +7,10 @@ import {
   type Facing,
   type MoveAnim,
   type PlayerState,
+  type RentRejectReason,
   type ServerMessage,
 } from "@/shared/protocol";
+import type { RideKind, ShopItemId, Wallet } from "@/shared/shop";
 import { Emitter } from "./Emitter";
 import { NetworkClient, type ConnectionStatus } from "./NetworkClient";
 import { INITIAL_CALL_STATE, TableCall, type CallState } from "./TableCall";
@@ -34,6 +36,12 @@ export interface SessionState {
   followTargetId: string | null;
   /** Conversas de DM por id do outro jogador. */
   dms: Readonly<Record<string, DmConversation>>;
+  /** Lerocoins e aluguéis do jogador. null até o servidor mandar (ou se não suportar). */
+  wallet: Wallet | null;
+  /** Relógio do servidor − relógio local (ms), para os contadores de aluguel. */
+  serverClockOffset: number;
+  /** Último aluguel recusado (para a loja mostrar o motivo). */
+  rentRejection: { item: ShopItemId; reason: RentRejectReason; at: number } | null;
 }
 
 /**
@@ -42,7 +50,7 @@ export interface SessionState {
  */
 function withAppearance(player: PlayerState, fallback: Appearance): PlayerState {
   const appearance = player.appearance ? sanitizeAppearance(player.appearance) : fallback;
-  return { ...player, appearance };
+  return { ...player, appearance, ride: player.ride ?? null, pet: player.pet ?? null };
 }
 
 /** Quantas conversas têm mensagens não lidas. */
@@ -64,6 +72,9 @@ const INITIAL_STATE: SessionState = {
   call: INITIAL_CALL_STATE,
   followTargetId: null,
   dms: {},
+  wallet: null,
+  serverClockOffset: 0,
+  rentRejection: null,
 };
 
 const MAX_DM_HISTORY = 300;
@@ -105,9 +116,12 @@ export class Session {
   private iceServers: RTCIceServer[] = [];
   private joined = false;
 
-  constructor(name: string, appearance: Appearance, url: string) {
+  private readonly walletKey: string | undefined;
+
+  constructor(name: string, appearance: Appearance, url: string, walletKey?: string) {
     this.name = name;
     this.appearance = appearance;
+    this.walletKey = walletKey;
     this.net = new NetworkClient(url);
   }
 
@@ -182,6 +196,17 @@ export class Session {
     if (trimmed) this.net.send({ type: "chat", text: trimmed });
   }
 
+  /** Aluga um item da loja por 1 hora (ou soma mais 1 hora se já estiver alugado). */
+  rent(item: ShopItemId) {
+    this.setState({ rentRejection: null });
+    this.net.send({ type: "rent", item });
+  }
+
+  /** Sobe num veículo alugado (ou desce, com null). */
+  equipRide(ride: RideKind | null) {
+    this.net.send({ type: "equip", ride });
+  }
+
   /** Faz o personagem local caminhar até outro jogador e acompanhá-lo. */
   follow(playerId: string) {
     if (playerId === this.state.selfId || !this.state.players[playerId]) return;
@@ -240,7 +265,13 @@ export class Session {
   private trySendJoin() {
     if (this.joined || !this.lastPosition || this.state.status !== "open") return;
     this.joined = true;
-    this.net.send({ type: "join", name: this.name, appearance: this.appearance, ...this.lastPosition });
+    this.net.send({
+      type: "join",
+      name: this.name,
+      appearance: this.appearance,
+      walletKey: this.walletKey,
+      ...this.lastPosition,
+    });
   }
 
   private handleStatus(status: ConnectionStatus) {
@@ -309,6 +340,15 @@ export class Session {
         break;
       case "signal":
         this.call?.handleSignal(msg.from, msg.data);
+        break;
+      case "player-gear":
+        patchPlayer(msg.id, { ride: msg.ride, pet: msg.pet });
+        break;
+      case "wallet":
+        this.setState({ wallet: msg.wallet, serverClockOffset: msg.serverNow - Date.now() });
+        break;
+      case "rent-rejected":
+        this.setState({ rentRejection: { item: msg.item, reason: msg.reason, at: Date.now() } });
         break;
       case "sit-rejected":
         break;

@@ -153,6 +153,10 @@ export class GameScene extends Phaser.Scene {
       case "player-seated":
         this.remotes.get(msg.id)?.applySeat(msg.seatId);
         break;
+      case "player-gear":
+        if (msg.id === this.session?.getState().selfId) this.player?.setGear(msg.ride, msg.pet);
+        else this.remotes.get(msg.id)?.setGear(msg.ride, msg.pet);
+        break;
     }
   }
 
@@ -161,7 +165,10 @@ export class GameScene extends Phaser.Scene {
     this.clearRemotes();
     if (!state?.selfId) return;
     const self = state.players[state.selfId];
-    if (self) this.player?.setSkin(ensureCharacterTexture(this, self.appearance));
+    if (self) {
+      this.player?.setSkin(ensureCharacterTexture(this, self.appearance));
+      this.player?.setGear(self.ride, self.pet);
+    }
     for (const id of Object.keys(state.players)) this.addRemote(id);
   }
 

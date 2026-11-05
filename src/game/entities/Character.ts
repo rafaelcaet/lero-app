@@ -6,7 +6,10 @@ import {
   type AnimState,
   type Direction,
 } from "../characters/characterSprites";
+import { ensureRideTexture, gearFrame, rideSpec } from "../graphics/gearSprites";
 import type { Seat } from "../maps/seats";
+import { RIDE_SPEED, type PetKind, type RideKind } from "@/shared/shop";
+import { Pet } from "./Pet";
 
 export interface CharacterOptions {
   x: number;
@@ -21,6 +24,9 @@ export interface CharacterOptions {
 const SEAT_OFFSET_Y = -8;
 /** Deslocamento do centro do sprite para a hitbox (nos pés) ficar no centro do tile. */
 export const FEET_OFFSET_Y = -9;
+/** Dos pés (base do frame) ao centro do sprite. */
+const FEET_BELOW_CENTER = 14;
+const BODY_OFFSET = { x: 8, y: 20 } as const;
 
 /**
  * Personagem genérico com física Arcade, animações e etiqueta de nome.
@@ -37,6 +43,12 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
   private _seat: Seat | null = null;
   private readonly velocity = new Phaser.Math.Vector2();
   private nameTag: Phaser.GameObjects.Text | null = null;
+  private _ride: RideKind | null = null;
+  private rideSprite: Phaser.GameObjects.Sprite | null = null;
+  private rideKey = "";
+  /** Quanto o desenho do personagem sobe no veículo (px). */
+  private lift = 0;
+  private pet: Pet | null = null;
 
   constructor(scene: Phaser.Scene, options: CharacterOptions) {
     const facing = options.facing ?? "down";
@@ -49,7 +61,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     // Hitbox reduzida nos pés: sensação top-down e passagem por portas de 2 tiles.
-    this.body.setSize(16, 10).setOffset(8, 20);
+    this.body.setSize(16, 10).setOffset(BODY_OFFSET.x, BODY_OFFSET.y);
     this.setCollideWorldBounds(true);
 
     createCharacterAnimations(scene, this.skinKey);
@@ -67,6 +79,33 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
 
   get seat(): Seat | null {
     return this._seat;
+  }
+
+  get ride(): RideKind | null {
+    return this._ride;
+  }
+
+  /** Velocidade atual (mais rápida de bicicleta/carro). */
+  get currentSpeed(): number {
+    return this.speed * (this._ride ? RIDE_SPEED[this._ride] : 1);
+  }
+
+  /** Veículo e mascote alugados na loja (null = nenhum). */
+  setGear(ride: RideKind | null, pet: PetKind | null) {
+    if (ride !== this._ride) {
+      this._ride = ride;
+      this.rideSprite?.destroy();
+      this.rideSprite = null;
+      if (ride) {
+        this.rideKey = ensureRideTexture(this.scene, ride);
+        this.rideSprite = this.scene.add.sprite(this.x, this.y, this.rideKey, gearFrame(this._facing)).setOrigin(0.5, 1);
+      }
+      this.playState(this._state, true);
+    }
+    if (pet !== (this.pet?.kind ?? null)) {
+      this.pet?.destroy();
+      this.pet = pet ? new Pet(this.scene, pet, this.x, this.y + FEET_BELOW_CENTER + 2) : null;
+    }
   }
 
   /** Troca a paleta de cores (textura) mantendo a pose atual. */
@@ -101,7 +140,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
    */
   move(dx: number, dy: number) {
     if (this._seat) return;
-    this.velocity.set(dx, dy).normalize().scale(this.speed);
+    this.velocity.set(dx, dy).normalize().scale(this.currentSpeed);
     this.body.setVelocity(this.velocity.x, this.velocity.y);
 
     if (dx === 0 && dy === 0) {
@@ -144,14 +183,48 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
 
   override preUpdate(time: number, delta: number) {
     super.preUpdate(time, delta);
+    this.updateRide();
     // Ordenação por profundidade (quem está mais abaixo aparece na frente).
     this.setDepth(10 + this.y / 1000);
-    this.nameTag?.setPosition(Math.round(this.x), Math.round(this.y - 17)).setDepth(this.depth + 1);
+    this.nameTag?.setPosition(Math.round(this.x), Math.round(this.y - 17 - this.lift)).setDepth(this.depth + 1);
+    if (this.rideSprite) this.rideSprite.setDepth(this.depth + 0.0005);
+
+    const feetY = this.y + FEET_BELOW_CENTER;
+    const gap = this._ride === "car" && !this._seat ? 36 : 22;
+    this.pet?.follow(this.x, feetY, delta, gap);
+  }
+
+  /** Posiciona o veículo nos pés, sobe o desenho do personagem e gira as rodas. */
+  private updateRide() {
+    const sprite = this.rideSprite;
+    const riding = Boolean(sprite && this._ride && !this._seat);
+    const lift = riding ? (rideSpec(this._ride!).lift ?? 0) * 2 : 0;
+    if (lift !== this.lift) {
+      // Sobe só o desenho: a origem muda junto com o offset da hitbox, que fica no lugar.
+      this.lift = lift;
+      this.setOrigin(0.5, (this.height / 2 + lift) / this.height);
+      this.body.setOffset(BODY_OFFSET.x, BODY_OFFSET.y + lift);
+    }
+    if (!sprite || !this._ride) return;
+    sprite.setVisible(riding);
+    if (!riding) return;
+    const spec = rideSpec(this._ride);
+    sprite.setPosition(Math.round(this.x), Math.round(this.y + FEET_BELOW_CENTER + 2 + spec.belowFeet * 2));
+    if (this._state === "walk") {
+      sprite.play(`${this.rideKey}-${this._facing}`, true);
+    } else {
+      sprite.stop();
+      sprite.setFrame(gearFrame(this._facing));
+    }
   }
 
   override destroy(fromScene?: boolean) {
     this.nameTag?.destroy();
     this.nameTag = null;
+    this.rideSprite?.destroy();
+    this.rideSprite = null;
+    this.pet?.destroy();
+    this.pet = null;
     super.destroy(fromScene);
   }
 
@@ -163,6 +236,8 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
 
   private playState(state: AnimState, force = false) {
     this._state = state;
-    this.play(animKey(this.skinKey, state, this._facing), !force);
+    // No veículo o personagem não mexe as pernas: quem anda são as rodas.
+    const shown = state === "walk" && this._ride ? "idle" : state;
+    this.play(animKey(this.skinKey, shown, this._facing), !force);
   }
 }

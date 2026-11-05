@@ -10,7 +10,10 @@ import { PhoneChat } from "@/components/dm/PhoneChat";
 import { UsersIcon } from "@/components/icons";
 import { PlayerList } from "@/components/players/PlayerList";
 import { PlayerModal } from "@/components/players/PlayerModal";
+import { CoinCounter } from "@/components/shop/CoinCounter";
+import { ShopModal } from "@/components/shop/ShopModal";
 import { TablePanel } from "@/components/table/TablePanel";
+import { loadWalletKey } from "@/session/walletKey";
 import { GameCanvas } from "./GameCanvas";
 
 const SIDEBAR_KEY = "lero:sidebar-collapsed";
@@ -20,6 +23,7 @@ type Overlay =
   | { kind: "player"; playerId: string }
   | { kind: "compose"; playerId: string }
   | { kind: "phone"; peerId: string | null }
+  | { kind: "shop" }
   | null;
 
 function readCollapsed(): boolean {
@@ -33,7 +37,7 @@ function readCollapsed(): boolean {
 /** O escritório: jogo, barra lateral, chamada da mesa e mensagens diretas. */
 export function Office({ name, appearance }: { name: string; appearance: Appearance }) {
   // Construir a sessão não conecta; a conexão abre/fecha no efeito (seguro em Strict Mode).
-  const [session] = useState(() => new Session(name, appearance, resolveServerUrl()));
+  const [session] = useState(() => new Session(name, appearance, resolveServerUrl(), loadWalletKey()));
   const state = useSessionState(session);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -67,7 +71,7 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
   };
 
   const overlayPlayer =
-    overlay && overlay.kind !== "phone" ? state.players[overlay.playerId] : undefined;
+    overlay && (overlay.kind === "player" || overlay.kind === "compose") ? state.players[overlay.playerId] : undefined;
 
   return (
     <div className="relative flex h-full w-full">
@@ -86,6 +90,13 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
             </div>
           )}
         </div>
+
+        {/* Canto superior esquerdo: Lerocoins e loja. */}
+        {state.wallet && (
+          <div className="absolute left-3 top-3">
+            <CoinCounter coins={state.wallet.coins} onOpenShop={() => setOverlay({ kind: "shop" })} />
+          </div>
+        )}
 
         {followed && (
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full border border-emerald-500/30 bg-neutral-900/95 py-1 pl-4 pr-1 text-xs text-neutral-200 shadow-lg">
@@ -156,6 +167,8 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
           onClose={closeOverlay}
         />
       )}
+
+      {overlay?.kind === "shop" && <ShopModal session={session} state={state} onClose={closeOverlay} />}
 
       {overlay?.kind === "phone" && (
         <PhoneChat session={session} state={state} initialPeerId={overlay.peerId} onClose={closeOverlay} />

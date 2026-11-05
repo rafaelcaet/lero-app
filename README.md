@@ -88,8 +88,23 @@ ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.exemplo
 | `HOST` | `0.0.0.0` | Interface de rede |
 | `ICE_SERVERS` | STUN do Google | Servidores STUN/TURN (JSON) enviados aos clientes |
 | `ALLOWED_ORIGINS` | qualquer | Origens aceitas no WebSocket, separadas por vírgula |
+| `WALLETS_FILE` | `.data/wallets.json` | Onde o servidor salva as Lerocoins (vazio = só memória) |
 | `ALLOWED_DEV_ORIGINS` | — | Domínios externos liberados no `pnpm dev` |
 | `NEXT_PUBLIC_WS_URL` | mesma origem `/ws` | WebSocket em outro endereço, ex.: site na Vercel (build) |
+
+## Lerocoins e loja
+
+- Cada jogador ganha **1 Lerocoin a cada 10 s online** (contado no servidor; várias abas da
+  mesma carteira não somam em dobro).
+- Na **Loja** (canto superior esquerdo do jogo) dá para alugar por 1 hora: **bicicleta**
+  (60, 1,6× mais rápido), **carro** (150, 2× mais rápido) e **mascote** (100: Pikachu,
+  Squirtle, Charmander ou Bulbasaur, sorteado, que segue o dono). Alugar de novo soma
+  mais 1 hora (até 24 h). Veículos podem ser usados/guardados enquanto estiverem alugados.
+- A carteira é identificada por uma chave gerada e guardada no navegador
+  (`localStorage`, `lero:wallet-key`): trocar de navegador ou limpar os dados começa do zero.
+- O servidor salva as carteiras em `WALLETS_FILE` a cada 30 s e ao desligar. No Fly.io o
+  disco da máquina é apagado a cada deploy: para manter as moedas, monte um volume e aponte
+  `WALLETS_FILE` para ele (ex.: `/data/wallets.json`).
 
 ## Limites conhecidos
 

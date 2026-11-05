@@ -146,3 +146,51 @@ export function SlidersIcon(props: IconProps) {
     </Stroke>
   );
 }
+
+/** Lerocoin: moeda dourada em pixel art com um "L". Cores próprias (não herda currentColor). */
+const COIN_ART = [
+  "...oooooo...",
+  "..oyyyyyyo..",
+  ".oywwyyyyyo.",
+  "oywyyyyyyydo",
+  "oyyykkyyyydo",
+  "oyyykkyyyydo",
+  "oyyykkyyyydo",
+  "oyyykkkkkydo",
+  "oyyykkkkkydo",
+  ".oyyyyyyydo.",
+  "..oddddddo..",
+  "...oooooo...",
+];
+const COIN_COLORS: Record<string, string> = {
+  o: "#6a3c08",
+  y: "#f8c838",
+  w: "#fff4b0",
+  d: "#c08018",
+  k: "#8a5410",
+};
+
+export function LerocoinIcon({ size = 20, ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" shapeRendering="crispEdges" aria-hidden {...props}>
+      {COIN_ART.flatMap((row, y) =>
+        [...row].map((ch, x) =>
+          ch === "." ? null : <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={COIN_COLORS[ch]} />,
+        ),
+      )}
+    </svg>
+  );
+}
+
+/** Loja (estilo Lucide "store"). */
+export function ShopIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+      <path d="M2 7h20" />
+      <path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7" />
+    </Stroke>
+  );
+}

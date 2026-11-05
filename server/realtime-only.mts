@@ -10,6 +10,7 @@
  *   ALLOWED_ORIGINS   domínios do site, separados por vírgula
  *                     ex.: https://lero-app-nu.vercel.app  (recomendado em produção)
  *   ICE_SERVERS       JSON com servidores STUN/TURN (veja server/main.mts)
+ *   WALLETS_FILE      onde salvar as Lerocoins (padrão .data/wallets.json; vazio = só memória)
  */
 import { createServer } from "node:http";
 import { WS_PATH } from "../src/shared/protocol.ts";
@@ -20,8 +21,9 @@ const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? "0.0.0.0";
 const iceServers = parseIceServers(process.env.ICE_SERVERS);
 const allowedOrigins = parseList(process.env.ALLOWED_ORIGINS);
+const walletsFile = process.env.WALLETS_FILE ?? ".data/wallets.json";
 
-const realtime = createRealtimeServer({ iceServers, allowedOrigins });
+const realtime = createRealtimeServer({ iceServers, allowedOrigins, walletsFile });
 
 // HTTP só para health check dos serviços de hospedagem.
 const server = createServer((req, res) => {
