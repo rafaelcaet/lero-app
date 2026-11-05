@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
 import { PLAYER_SPEED } from "../constants";
+import { consumeInteract, getTouchDirection } from "../input/touchInput";
 import { Character } from "./Character";
 
 export interface PlayerOptions {
@@ -48,14 +49,14 @@ export class Player extends Character {
     this.allKeys = [...Object.values(this.keys).flat(), this.interactKey];
   }
 
-  /** Direção pedida pelo teclado neste frame. */
+  /** Direção pedida pelo teclado (ou, sem teclado, pelo joystick de toque) neste frame. */
   readDirection(): { dx: number; dy: number } {
     if (isTypingInForm()) return { dx: 0, dy: 0 };
     const down = (keys: Phaser.Input.Keyboard.Key[]) => Number(keys.some((k) => k.isDown));
-    return {
-      dx: down(this.keys.right) - down(this.keys.left),
-      dy: down(this.keys.down) - down(this.keys.up),
-    };
+    const dx = down(this.keys.right) - down(this.keys.left);
+    const dy = down(this.keys.down) - down(this.keys.up);
+    if (dx !== 0 || dy !== 0) return { dx, dy };
+    return getTouchDirection();
   }
 
   /** Teclas de movimento pressionadas neste frame. */
@@ -85,10 +86,11 @@ export class Player extends Character {
     return false;
   }
 
-  /** "E" pressionado neste frame. */
+  /** "E" (ou o botão de ação na tela) pressionado neste frame. */
   interactPressed(): boolean {
+    const touched = consumeInteract();
     const pressed = Phaser.Input.Keyboard.JustDown(this.interactKey);
-    return pressed && !isTypingInForm();
+    return touched || (pressed && !isTypingInForm());
   }
 
   override destroy(fromScene?: boolean) {

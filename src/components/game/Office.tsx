@@ -15,6 +15,7 @@ import { ShopModal } from "@/components/shop/ShopModal";
 import { TablePanel } from "@/components/table/TablePanel";
 import { loadWalletKey } from "@/session/walletKey";
 import { GameCanvas } from "./GameCanvas";
+import { TouchControls, useIsTouch } from "./TouchControls";
 
 const SIDEBAR_KEY = "lero:sidebar-collapsed";
 
@@ -43,6 +44,7 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
   const [listOpen, setListOpen] = useState(false);
   // O escritório só é montado no navegador (depois do nome), então pode ler o localStorage aqui.
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const isTouch = useIsTouch();
 
   useEffect(() => {
     session.start();
@@ -63,6 +65,7 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
   const followed = state.followTargetId ? state.players[state.followTargetId] : undefined;
   const onlineCount = Object.keys(state.players).length;
   const unread = unreadConversations(state);
+  const seated = Boolean(state.selfId && state.players[state.selfId]?.seatId);
 
   const openPhone = () => {
     // Uma única conversa não lida: abre direto nela.
@@ -99,7 +102,9 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
         )}
 
         {followed && (
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full border border-emerald-500/30 bg-neutral-900/95 py-1 pl-4 pr-1 text-xs text-neutral-200 shadow-lg">
+          <div
+            className={`absolute left-1/2 flex -translate-x-1/2 ${isTouch ? "top-16" : "bottom-3"} items-center gap-3 rounded-full border border-emerald-500/30 bg-neutral-900/95 py-1 pl-4 pr-1 text-xs text-neutral-200 shadow-lg`}
+          >
             <span>
               Seguindo <strong className="font-semibold text-emerald-400">{followed.name}</strong>
             </span>
@@ -114,6 +119,9 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
           </div>
         )}
         <TablePanel session={session} state={state} />
+
+        {/* Celular/tablet: joystick e botão de ação na tela. Some com janelas abertas. */}
+        {isTouch && !overlay && !listOpen && <TouchControls seated={seated} />}
 
         {/* No celular a lista abre por cima do jogo. */}
         <button

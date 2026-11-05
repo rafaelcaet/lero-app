@@ -4,6 +4,7 @@ import type { Session } from "@/session/Session";
 import type { Player } from "../entities/Player";
 import { OFFICE_SEATS, SEAT_BY_ID } from "../maps/officeSeats";
 import type { Seat } from "../maps/seats";
+import { isTouchDevice, setActionLabel } from "../input/touchInput";
 
 /** Um pouco menor que o limite do servidor, para o pedido nunca chegar "longe demais". */
 const INTERACT_DISTANCE = LIMITS.sitDistance - 16;
@@ -21,6 +22,8 @@ const REJECT_TEXT: Record<SitRejectReason, string> = {
 export class SeatInteraction {
   private readonly prompt: Phaser.GameObjects.Text;
   private pendingSeatId: string | null = null;
+  /** No celular a ação é um botão na tela, então o balão não mostra "[E]". */
+  private readonly keyHint = isTouchDevice() ? "" : "[E] ";
   private readonly unsubscribers: Array<() => void>;
 
   constructor(
@@ -70,26 +73,34 @@ export class SeatInteraction {
 
     if (this.player.seat) {
       // Levanta com "E" ou ao tentar andar.
-      if (interact || dx !== 0 || dy !== 0) this.stand();
-      else this.showPrompt(this.player.x, this.player.y - 18, "[E] Levantar");
+      if (interact || dx !== 0 || dy !== 0) {
+        this.stand();
+        setActionLabel(null);
+      } else {
+        this.showPrompt(this.player.x, this.player.y - 18, `${this.keyHint}Levantar`);
+        setActionLabel("Levantar");
+      }
       return true;
     }
 
     if (this.pendingSeatId) {
       this.prompt.setVisible(false);
+      setActionLabel(null);
       return true;
     }
 
     const seat = this.nearestSeat();
     if (!seat) {
       this.prompt.setVisible(false);
+      setActionLabel(null);
       return false;
     }
 
     const occupied = this.session.occupiedSeats().has(seat.id);
     const online = this.session.getState().selfId !== null;
-    const label = !online ? "Conectando…" : occupied ? "Ocupada" : "[E] Sentar";
+    const label = !online ? "Conectando…" : occupied ? "Ocupada" : `${this.keyHint}Sentar`;
     this.showPrompt(seat.x, seat.y - 14, label, occupied || !online);
+    setActionLabel(online && !occupied ? "Sentar" : null);
 
     if (interact) {
       if (occupied) this.flash("Cadeira ocupada");
@@ -103,6 +114,7 @@ export class SeatInteraction {
   }
 
   destroy() {
+    setActionLabel(null);
     this.unsubscribers.forEach((off) => off());
     this.prompt.destroy();
   }
