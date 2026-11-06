@@ -27,7 +27,7 @@ export function ActivityMenu({
   const keepFocus = (e: React.MouseEvent) => e.preventDefault();
 
   return (
-    <div className={`absolute z-10 flex flex-col items-end gap-2 ${className}`}>
+    <div className={`flex flex-col items-end gap-2 ${className}`}>
       {open && (
         <div
           role="menu"

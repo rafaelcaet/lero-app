@@ -11,6 +11,7 @@ import {
   type ServerMessage,
 } from "@/shared/protocol";
 import type { Activity } from "@/shared/activities";
+import { sanitizeBubbleText, type Emote } from "@/shared/bubbles";
 import type { RideKind, ShopItemId, Wallet } from "@/shared/shop";
 import { Emitter } from "./Emitter";
 import { NetworkClient, type ConnectionStatus } from "./NetworkClient";
@@ -211,6 +212,17 @@ export class Session {
   /** Começa uma atividade (comer, fumar, dormir) ou, com null, para. */
   setActivity(activity: Activity | null) {
     this.net.send({ type: "activity", activity });
+  }
+
+  /** Balão de fala com texto curto (até 20 caracteres) ao lado do personagem. */
+  sayBubble(text: string) {
+    const clean = sanitizeBubbleText(text);
+    if (clean) this.net.send({ type: "bubble", bubble: { kind: "text", text: clean } });
+  }
+
+  /** Balão de fala com um emote (beleza, coração, dúvida, negativo). */
+  sendEmote(emote: Emote) {
+    this.net.send({ type: "bubble", bubble: { kind: "emote", emote } });
   }
 
   /** Faz o personagem local caminhar até outro jogador e acompanhá-lo. */

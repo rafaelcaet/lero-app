@@ -18,6 +18,7 @@ import {
   type ServerMessage,
 } from "../src/shared/protocol.ts";
 import { isActivity } from "../src/shared/activities.ts";
+import { BUBBLE_COOLDOWN_MS, sanitizeBubble } from "../src/shared/bubbles.ts";
 import { sanitizeAppearance } from "../src/shared/appearance.ts";
 import {
   COIN_INTERVAL_MS,
@@ -57,6 +58,8 @@ interface Client {
   /** Sessão aberta no banco e quando começou. */
   sessionId: Promise<string> | null;
   connectedAt: number;
+  /** Último balão de fala aceito (anti-spam). */
+  lastBubbleAt: number;
 }
 const clients = new Map<string, Client>();
 
@@ -362,6 +365,14 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
       }
       return setActivity(state, msg.activity);
     }
+    case "bubble": {
+      const bubble = sanitizeBubble(msg.bubble);
+      const now = Date.now();
+      if (!bubble || now - client.lastBubbleAt < BUBBLE_COOLDOWN_MS) return;
+      client.lastBubbleAt = now;
+      broadcast({ type: "player-bubble", id, bubble });
+      return;
+    }
     case "sit":
       return handleSit(id, client, state, String(msg.seatId));
     case "stand":
@@ -475,6 +486,7 @@ export function createRealtimeServer(options: RealtimeOptions): RealtimeServer {
       joining: false,
       sessionId: null,
       connectedAt: 0,
+      lastBubbleAt: 0,
     };
     clients.set(id, client);
 

@@ -9,9 +9,11 @@ import {
 import { ensureRideTexture, gearFrame, rideSpec } from "../graphics/gearSprites";
 import type { Seat } from "../maps/seats";
 import type { Activity } from "@/shared/activities";
+import type { Bubble } from "@/shared/bubbles";
 import { RIDE_SPEED, type PetKind, type RideKind } from "@/shared/shop";
 import { ActivityEffects } from "./ActivityEffects";
 import { Pet } from "./Pet";
+import { SpeechBubble, type BubbleSide } from "./SpeechBubble";
 
 /** Pose de cada atividade (de frente). */
 const ACTIVITY_STATE = { eating: "eat", smoking: "smoke", sleeping: "sleep" } as const satisfies Record<Activity, AnimState>;
@@ -32,6 +34,8 @@ export const FEET_OFFSET_Y = -9;
 /** Dos pés (base do frame) ao centro do sprite. */
 const FEET_BELOW_CENTER = 14;
 const BODY_OFFSET = { x: 8, y: 20 } as const;
+/** Boca em relação ao centro do sprite (x para o lado em que o balão aparece). */
+const MOUTH = { x: 6, y: -5 } as const;
 
 /**
  * Personagem genérico com física Arcade, animações e etiqueta de nome.
@@ -56,6 +60,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
   private pet: Pet | null = null;
   private _activity: Activity | null = null;
   private effects: ActivityEffects | null = null;
+  private bubble: SpeechBubble | null = null;
 
   constructor(scene: Phaser.Scene, options: CharacterOptions) {
     const facing = options.facing ?? "down";
@@ -107,6 +112,31 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
       this.body.setVelocity(0, 0);
     }
     this.playState(this._state, true);
+  }
+
+  /** Mostra um balão de fala (texto curto ou emote) ao lado da boca; substitui o anterior. */
+  showBubble(bubble: Bubble) {
+    this.bubble?.destroy();
+    const created: SpeechBubble = new SpeechBubble(this.scene, bubble, this.bubbleSide(), () => {
+      if (this.bubble === created) this.bubble = null;
+    });
+    this.bubble = created;
+    this.updateBubble();
+  }
+
+  /** Olhando para a esquerda, o balão sai pela esquerda; nos outros casos, pela direita. */
+  private bubbleSide(): BubbleSide {
+    return this._facing === "left" ? -1 : 1;
+  }
+
+  private updateBubble() {
+    const bubble = this.bubble;
+    if (!bubble) return;
+    const side = this.bubbleSide();
+    bubble.setSide(side);
+    bubble
+      .setPosition(Math.round(this.x + side * MOUTH.x), Math.round(this.y + MOUTH.y - this.lift))
+      .setDepth(this.depth + 3);
   }
 
   /** Velocidade atual (mais rápida de bicicleta/carro). */
@@ -216,6 +246,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(10 + this.y / 1000);
     this.nameTag?.setPosition(Math.round(this.x), Math.round(this.y - 17 - this.lift)).setDepth(this.depth + 1);
     this.effects?.update(delta, this.x, this.y - this.lift, this.depth + 2);
+    this.updateBubble();
     if (this.rideSprite) this.rideSprite.setDepth(this.depth + 0.0005);
 
     const feetY = this.y + FEET_BELOW_CENTER;
@@ -252,6 +283,8 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
     this.nameTag = null;
     this.effects?.destroy();
     this.effects = null;
+    this.bubble?.destroy();
+    this.bubble = null;
     this.rideSprite?.destroy();
     this.rideSprite = null;
     this.pet?.destroy();
