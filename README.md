@@ -1,4 +1,4 @@
-# Gather Clone
+# Lero
 
 Escritório 2D top-down (Next.js + Phaser 3) com cadeiras, chat de mesa e
 chamada de voz/vídeo (WebRTC) entre quem senta na mesma mesa.
