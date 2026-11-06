@@ -15,6 +15,7 @@ import { ShopModal } from "@/components/shop/ShopModal";
 import { TablePanel } from "@/components/table/TablePanel";
 import { loadWalletKey } from "@/session/walletKey";
 import { ActivityMenu } from "./ActivityMenu";
+import { BubbleMenu } from "./BubbleMenu";
 import { GameCanvas } from "./GameCanvas";
 import { TouchControls, useIsTouch } from "./TouchControls";
 
@@ -125,13 +126,16 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
         {/* Celular/tablet: joystick e botão de ação na tela. Some com janelas abertas. */}
         {isTouch && !overlay && !listOpen && <TouchControls seated={seated} />}
 
-        {/* Atividades (almoçar, fumar, dormir): só em pé; no celular fica acima do botão de ação. */}
+        {/* Balão de fala e atividades: só em pé; no celular ficam acima do botão de ação. */}
         {self && !seated && (
-          <ActivityMenu
-            current={self.activity}
-            onChange={(activity) => session.setActivity(activity)}
-            className={isTouch ? "bottom-32 right-5" : "bottom-4 right-4"}
-          />
+          <div className={`absolute z-10 flex items-end gap-2 ${isTouch ? "bottom-32 right-5" : "bottom-4 right-4"}`}>
+            <BubbleMenu
+              onSay={(text) => session.sayBubble(text)}
+              onEmote={(emote) => session.sendEmote(emote)}
+              shortcutEnabled={!overlay && !listOpen}
+            />
+            <ActivityMenu current={self.activity} onChange={(activity) => session.setActivity(activity)} />
+          </div>
         )}
 
         {/* No celular a lista abre por cima do jogo. */}

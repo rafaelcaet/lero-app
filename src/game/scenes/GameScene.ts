@@ -162,6 +162,10 @@ export class GameScene extends Phaser.Scene {
         if (msg.id === this.session?.getState().selfId) this.player?.setActivity(msg.activity);
         else this.remotes.get(msg.id)?.setActivity(msg.activity);
         break;
+      case "player-bubble":
+        if (msg.id === this.session?.getState().selfId) this.player?.showBubble(msg.bubble);
+        else this.remotes.get(msg.id)?.showBubble(msg.bubble);
+        break;
       case "player-gear":
         if (msg.id === this.session?.getState().selfId) this.player?.setGear(msg.ride, msg.pet);
         else this.remotes.get(msg.id)?.setGear(msg.ride, msg.pet);

@@ -4,6 +4,7 @@
  */
 import type { Activity } from "./activities.ts";
 import type { Appearance } from "./appearance.ts";
+import type { Bubble } from "./bubbles.ts";
 import type { PetKind, RideKind, ShopItemId, Wallet } from "./shop.ts";
 
 /** Caminho do WebSocket do jogo (mesma origem do site). */
@@ -88,7 +89,9 @@ export type ClientMessage =
   /** Sobe/desce do veículo. null = andar a pé. */
   | { type: "equip"; ride: RideKind | null }
   /** Começa uma atividade (ou null para parar). */
-  | { type: "activity"; activity: Activity | null };
+  | { type: "activity"; activity: Activity | null }
+  /** Balão de fala (texto curto ou emote) ao lado do personagem. */
+  | { type: "bubble"; bubble: Bubble };
 
 export type SitRejectReason = "occupied" | "too-far" | "unknown-seat";
 
@@ -112,4 +115,6 @@ export type ServerMessage =
   | { type: "wallet"; wallet: Wallet; serverNow: number }
   | { type: "rent-rejected"; item: ShopItemId; reason: RentRejectReason }
   | { type: "player-activity"; id: string; activity: Activity | null }
+  /** Balão de fala de um jogador (enviado a todos, inclusive a quem falou). */
+  | { type: "player-bubble"; id: string; bubble: Bubble }
   | { type: "player-gear"; id: string; ride: RideKind | null; pet: PetKind | null };
