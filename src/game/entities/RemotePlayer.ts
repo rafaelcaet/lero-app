@@ -24,7 +24,10 @@ export class RemotePlayer extends Character {
     this.body.enable = false;
     this.target.set(state.x, state.y);
     this.applySeat(state.seatId);
-    if (!state.seatId) this.setPose(state.facing, state.anim);
+    if (!state.seatId) {
+      this.setPose(state.facing, state.anim);
+      this.setActivity(state.activity);
+    }
     this.setGear(state.ride, state.pet);
   }
 

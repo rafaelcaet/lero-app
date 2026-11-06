@@ -5,6 +5,7 @@
  * Layout do sheet (frames de 32 × 32):
  *   linhas  = direções (down, left, right, up)
  *   colunas = 0 idle · 1 idle (respiração) · 2 idle (piscada) · 3–6 caminhada · 7 sentado
+ *             · 8–9 comendo · 10–11 fumando · 12–13 dormindo
  *
  * Um spritesheet PNG externo com o mesmo layout pode substituir o gerado
  * sem mudar nenhuma outra parte do código.
@@ -18,12 +19,13 @@ import { appearanceKey, type Appearance } from "@/shared/appearance";
 const T = TILE_SIZE;
 
 export { DIRECTIONS, type Direction };
-export type AnimState = "idle" | "walk" | "sit";
+export type AnimState = "idle" | "walk" | "sit" | "eat" | "smoke" | "sleep";
 
 const IDLE = { base: 0, breath: 1, blink: 2 } as const;
 const WALK_START = 3;
 const WALK_FRAME_COUNT = 4;
 const SIT = WALK_START + WALK_FRAME_COUNT;
+const ACTIVITY_START = SIT + 1;
 export const FRAMES_PER_DIRECTION = POSES.length;
 
 /** Chave da textura de uma aparência (a mesma aparência reaproveita o sheet). */
@@ -86,6 +88,22 @@ export function createCharacterAnimations(scene: Phaser.Scene, textureKey: strin
     const sit = animKey(textureKey, "sit", dir);
     if (!scene.anims.exists(sit)) {
       scene.anims.create({ key: sit, frames: [frame(dir, SIT)] });
+    }
+
+    // Atividades alternam entre "parado" e "ação" (mordida, tragada, cabeça pendendo).
+    const activities = [
+      { state: "eat", first: 0, hold: [900, 450] },
+      { state: "smoke", first: 2, hold: [1500, 900] },
+      { state: "sleep", first: 4, hold: [1100, 1100] },
+    ] as const;
+    for (const { state, first, hold } of activities) {
+      const key = animKey(textureKey, state, dir);
+      if (scene.anims.exists(key)) continue;
+      scene.anims.create({
+        key,
+        repeat: -1,
+        frames: [0, 1].map((i) => frame(dir, ACTIVITY_START + first + i, hold[i])),
+      });
     }
 
     const walk = animKey(textureKey, "walk", dir);

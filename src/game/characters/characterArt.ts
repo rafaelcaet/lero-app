@@ -6,6 +6,7 @@
  *
  * Layout do sheet: linhas = direções (down, left, right, up);
  * colunas = 0 idle · 1 idle (respiração) · 2 idle (piscada) · 3–6 caminhada · 7 sentado
+ *          · 8–9 comendo · 10–11 fumando · 12–13 dormindo (só de frente)
  */
 import {
   HAIR_COLORS,
@@ -29,9 +30,12 @@ export interface Pose {
   swing: -1 | 0 | 1;
   eyesClosed: boolean;
   sitting: boolean;
+  /** Atividade (só vista frontal) e a fase dela: 0 = parado, 1 = ação (mordida, tragada, cochilo). */
+  activity: "eat" | "smoke" | "sleep" | null;
+  phase: 0 | 1;
 }
 
-const NEUTRAL: Pose = { step: 0, swing: 0, eyesClosed: false, sitting: false };
+const NEUTRAL: Pose = { step: 0, swing: 0, eyesClosed: false, sitting: false, activity: null, phase: 0 };
 
 /** Poses por coluna do sheet. */
 export const POSES: readonly Pose[] = [
@@ -44,6 +48,12 @@ export const POSES: readonly Pose[] = [
   { ...NEUTRAL, step: 1, swing: -1 },
   NEUTRAL,
   { ...NEUTRAL, sitting: true },
+  { ...NEUTRAL, activity: "eat", phase: 0 },
+  { ...NEUTRAL, activity: "eat", phase: 1 },
+  { ...NEUTRAL, activity: "smoke", phase: 0 },
+  { ...NEUTRAL, activity: "smoke", phase: 1 },
+  { ...NEUTRAL, activity: "sleep", phase: 0, eyesClosed: true },
+  { ...NEUTRAL, activity: "sleep", phase: 1, eyesClosed: true },
 ];
 
 // --- cores -----------------------------------------------------------------
@@ -408,7 +418,50 @@ function drawFrontBack(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose, 
   arm(x0 - 1, pose.swing === 1 ? -1 : 0);
   arm(x1 + 1, pose.swing === -1 ? -1 : 0);
 
-  drawHead(cv, back ? "back" : "front", a, col, pose, y0);
+  // Cochilando: a cabeça pende um pixel na fase 1.
+  const nod = pose.activity === "sleep" && pose.phase === 1 ? 1 : 0;
+  drawHead(cv, back ? "back" : "front", a, col, pose, y0 + nod);
+  if (!back) drawActivityProps(cv, pose, col, x1 + 1, t);
+}
+
+const BREAD = 0xe0a85a;
+const BREAD_DARK = 0xb87a38;
+const LETTUCE = 0x58b84a;
+const MEAT = 0x8a3a28;
+
+/** Braço erguido, comida e cigarro por cima do personagem de frente (xr = coluna do braço direito). */
+function drawActivityProps(cv: PixelCanvas, pose: Pose, col: Colors, xr: number, t: number) {
+  const bite = pose.phase === 1;
+  const sleeve = col.c;
+  const hand = col.S;
+  const burger = (x: number, y: number) => {
+    cv.rect(x, y, 4, 1, BREAD).rect(x, y + 1, 4, 1, LETTUCE).rect(x, y + 2, 4, 1, BREAD_DARK);
+    cv.set(x, y + 1, MEAT).set(x + 1, y + 1, MEAT).clear(x, y).set(x + 3, y, BREAD_DARK);
+  };
+  if (pose.activity === "eat") {
+    for (let y = t; y < t + 3; y++) cv.clear(xr, y);
+    if (!bite) {
+      // Segura o lanche na altura do peito.
+      cv.set(xr, t + 2, sleeve).set(xr, t + 1, sleeve);
+      burger(xr - 1, t - 1);
+      cv.set(xr + 3, t + 1, hand).set(xr + 3, t, hand);
+    } else {
+      // Mordida: o lanche sobe até a boca, a mão o segura por baixo.
+      burger(xr - 5, t - 1);
+      cv.set(xr - 1, t, hand).set(xr, t, sleeve).set(xr, t + 1, sleeve).set(xr, t + 2, sleeve);
+    }
+  } else if (pose.activity === "smoke") {
+    for (let y = t; y < t + 3; y++) cv.clear(xr, y);
+    if (!bite) {
+      // Braço dobrado na frente do peito, cigarro entre os dedos.
+      cv.set(xr, t, sleeve).set(xr, t + 1, sleeve).set(xr - 1, t + 1, hand);
+      cv.set(xr - 1, t, 0xf4f0e8).set(xr - 1, t - 1, 0xf4f0e8).set(xr - 1, t - 2, 0xf06030);
+    } else {
+      // Tragada: mão na boca, brasa acesa.
+      cv.set(xr, t, sleeve).set(xr, t + 1, sleeve).set(xr - 1, t - 1, hand).set(xr, t - 1, sleeve);
+      cv.set(xr - 3, t - 1, 0xf4f0e8).set(xr - 2, t - 1, 0xf4f0e8).set(xr - 4, t - 1, 0xf06030);
+    }
+  }
 }
 
 /** Vista lateral olhando para a direita (a esquerda é espelhada). */
@@ -464,6 +517,8 @@ function drawSide(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose) {
 export function drawCharacterFrame(dir: Direction, pose: Pose, appearance: Appearance): PixelCanvas {
   const col = colorsFor(appearance);
   const cv = new PixelCanvas(N, N);
+  // Atividades só existem de frente; nas outras direções vira a pose parada.
+  if (pose.activity && dir !== "down") pose = { ...NEUTRAL, eyesClosed: pose.eyesClosed };
   if (dir === "down") drawFrontBack(cv, appearance, col, pose, false);
   else if (dir === "up") drawFrontBack(cv, appearance, col, pose, true);
   else drawSide(cv, appearance, col, pose);

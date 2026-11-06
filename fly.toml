@@ -11,6 +11,8 @@ primary_region = 'gru'
   PORT = '8080'
   # Domínio(s) do site, separados por vírgula. Ajuste se o domínio da Vercel for outro.
   ALLOWED_ORIGINS = 'https://lero-app-nu.vercel.app'
+  MONGODB_DB = 'lero'
+  # MONGODB_URI é segredo: fly secrets set MONGODB_URI='mongodb+srv://...'
 
 [http_service]
   internal_port = 8080

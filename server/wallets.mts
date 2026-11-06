@@ -1,10 +1,8 @@
 /**
  * Carteiras de Lerocoins e aluguéis, por chave de carteira (gerada e guardada
- * no navegador). Ficam em memória e são salvas num arquivo JSON de tempos em
- * tempos, para sobreviver a reinícios do servidor.
+ * no navegador). Ficam em cache na memória enquanto alguém as usa; o que muda
+ * é gravado no store (MongoDB) de tempos em tempos e ao desligar o servidor.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
 import {
   isPetKind,
   isRideKind,
@@ -14,14 +12,17 @@ import {
   type Rental,
   type Wallet,
 } from "../src/shared/shop.ts";
+import type { Store } from "./db/store.mts";
 
 export interface StoredWallet extends Wallet {
+  /** Chave da carteira (só no servidor). */
+  key: string;
   /** Quando ganhou moeda pela última vez (ms). Só vale enquanto está online. */
   lastAwardAt: number;
 }
 
 const KEY_PATTERN = /^[A-Za-z0-9-]{16,64}$/;
-const SAVE_INTERVAL_MS = 30_000;
+const SAVE_INTERVAL_MS = 5_000;
 
 export const isWalletKey = (v: unknown): v is string => typeof v === "string" && KEY_PATTERN.test(v);
 
@@ -32,14 +33,15 @@ export function gearOf(wallet: Wallet, now: number): { ride: RideKind | null; pe
   return { ride, pet: active("pet")?.pet ?? null };
 }
 
-/** Versão enviada ao cliente (sem campos internos). */
-export function publicWallet(wallet: StoredWallet): Wallet {
+/** Versão enviada ao cliente e gravada no banco (sem campos internos). */
+export function publicWallet(wallet: Wallet): Wallet {
   return { coins: wallet.coins, rentals: wallet.rentals.map((r) => ({ ...r })), ride: wallet.ride };
 }
 
-function sanitize(raw: unknown): StoredWallet | null {
-  if (!raw || typeof raw !== "object") return null;
-  const w = raw as Partial<StoredWallet>;
+/** Aceita qualquer valor (vindo do banco ou de um arquivo antigo) e devolve uma carteira válida. */
+export function sanitizeWallet(raw: unknown): Wallet {
+  if (!raw || typeof raw !== "object") return { coins: 0, rentals: [], ride: null };
+  const w = raw as Partial<Wallet>;
   const coins = Number.isFinite(w.coins) ? Math.max(0, Math.floor(w.coins!)) : 0;
   const rentals = Array.isArray(w.rentals)
     ? w.rentals.flatMap((r): Rental[] => {
@@ -49,68 +51,98 @@ function sanitize(raw: unknown): StoredWallet | null {
         return [rental];
       })
     : [];
-  return { coins, rentals, ride: isRideKind(w.ride) ? w.ride : null, lastAwardAt: 0 };
+  return { coins, rentals, ride: isRideKind(w.ride) ? w.ride : null };
 }
 
 export class WalletStore {
+  private readonly store: Store;
   private readonly wallets = new Map<string, StoredWallet>();
-  private dirty = false;
-  private readonly file: string;
-  private readonly timer: NodeJS.Timeout | null = null;
+  private readonly loading = new Map<string, Promise<StoredWallet>>();
+  /** Quantas conexões estão usando (ou carregando) cada carteira. */
+  private readonly refs = new Map<string, number>();
+  private readonly dirty = new Set<string>();
+  private readonly timer: NodeJS.Timeout;
+  private flushing: Promise<void> | null = null;
 
-  /** `file` vazio = só em memória. */
-  constructor(file: string) {
-    this.file = file;
-    if (!file) return;
-    try {
-      const data = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
-      for (const [key, raw] of Object.entries(data)) {
-        const wallet = isWalletKey(key) ? sanitize(raw) : null;
-        if (wallet) this.wallets.set(key, wallet);
-      }
-      console.log(`[wallets] ${this.wallets.size} carteira(s) carregada(s) de ${file}`);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-        console.warn(`[wallets] não foi possível ler ${file}:`, err);
-      }
-    }
-    this.timer = setInterval(() => this.save(), SAVE_INTERVAL_MS);
+  constructor(store: Store) {
+    this.store = store;
+    this.timer = setInterval(() => void this.flush(), SAVE_INTERVAL_MS);
     this.timer.unref();
   }
 
-  get(key: string): StoredWallet {
-    let wallet = this.wallets.get(key);
-    if (!wallet) {
-      wallet = { coins: 0, rentals: [], ride: null, lastAwardAt: 0 };
-      this.wallets.set(key, wallet);
-    }
-    return wallet;
-  }
-
-  markDirty() {
-    this.dirty = true;
-  }
-
-  save() {
-    if (!this.file || !this.dirty) return;
-    this.dirty = false;
+  /**
+   * Carrega a carteira (do cache ou do banco) e a mantém em memória até `release`.
+   * Rejeita se o banco falhar — nesse caso não se deve criar uma carteira vazia,
+   * senão ela sobrescreveria a salva.
+   */
+  async acquire(key: string): Promise<StoredWallet> {
+    this.refs.set(key, (this.refs.get(key) ?? 0) + 1);
     try {
-      mkdirSync(dirname(this.file), { recursive: true });
-      const data = Object.fromEntries(
-        [...this.wallets].map(([key, { coins, rentals, ride }]) => [key, { coins, rentals, ride }]),
-      );
-      // Escreve num temporário e renomeia: não corrompe o arquivo se o processo cair no meio.
-      const tmp = `${this.file}.tmp`;
-      writeFileSync(tmp, JSON.stringify(data));
-      renameSync(tmp, this.file);
+      return this.wallets.get(key) ?? (await this.load(key));
     } catch (err) {
-      this.dirty = true;
-      console.warn(`[wallets] falha ao salvar ${this.file}:`, err);
+      this.release(key);
+      throw err;
     }
   }
 
-  close() {
-    if (this.timer) clearInterval(this.timer);
-    this.save();
+  /** A conexão não usa mais a carteira; sem ninguém usando, ela sai do cache depois de salva. */
+  release(key: string) {
+    const count = (this.refs.get(key) ?? 0) - 1;
+    if (count > 0) this.refs.set(key, count);
+    else this.refs.delete(key);
+  }
+
+  markDirty(wallet: StoredWallet) {
+    this.dirty.add(wallet.key);
+  }
+
+  /** Grava as carteiras alteradas e tira do cache as que ninguém está usando. */
+  flush(): Promise<void> {
+    this.flushing ??= this.doFlush().finally(() => (this.flushing = null));
+    return this.flushing;
+  }
+
+  async close() {
+    clearInterval(this.timer);
+    await this.flushing;
+    await this.flush();
+  }
+
+  private load(key: string): Promise<StoredWallet> {
+    let promise = this.loading.get(key);
+    if (!promise) {
+      promise = this.store
+        .loadWallet(key)
+        .then((saved) => {
+          // Pode já ter sido criada por outra conexão enquanto carregava.
+          const existing = this.wallets.get(key);
+          if (existing) return existing;
+          const wallet: StoredWallet = { ...sanitizeWallet(saved), key, lastAwardAt: 0 };
+          this.wallets.set(key, wallet);
+          return wallet;
+        })
+        .finally(() => this.loading.delete(key));
+      this.loading.set(key, promise);
+    }
+    return promise;
+  }
+
+  private async doFlush() {
+    const keys = [...this.dirty];
+    this.dirty.clear();
+    const entries = keys.flatMap((key) => {
+      const wallet = this.wallets.get(key);
+      return wallet ? [[key, publicWallet(wallet)] as const] : [];
+    });
+    try {
+      await this.store.saveWallets(entries);
+    } catch (err) {
+      for (const key of keys) this.dirty.add(key);
+      console.warn(`[wallets] falha ao salvar ${keys.length} carteira(s); tento de novo em breve:`, err);
+      return;
+    }
+    for (const key of this.wallets.keys()) {
+      if (!this.refs.has(key) && !this.dirty.has(key)) this.wallets.delete(key);
+    }
   }
 }
