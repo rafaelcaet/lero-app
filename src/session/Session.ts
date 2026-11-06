@@ -10,6 +10,7 @@ import {
   type RentRejectReason,
   type ServerMessage,
 } from "@/shared/protocol";
+import type { Activity } from "@/shared/activities";
 import type { RideKind, ShopItemId, Wallet } from "@/shared/shop";
 import { Emitter } from "./Emitter";
 import { NetworkClient, type ConnectionStatus } from "./NetworkClient";
@@ -50,7 +51,7 @@ export interface SessionState {
  */
 function withAppearance(player: PlayerState, fallback: Appearance): PlayerState {
   const appearance = player.appearance ? sanitizeAppearance(player.appearance) : fallback;
-  return { ...player, appearance, ride: player.ride ?? null, pet: player.pet ?? null };
+  return { ...player, appearance, ride: player.ride ?? null, pet: player.pet ?? null, activity: player.activity ?? null };
 }
 
 /** Quantas conversas têm mensagens não lidas. */
@@ -207,6 +208,11 @@ export class Session {
     this.net.send({ type: "equip", ride });
   }
 
+  /** Começa uma atividade (comer, fumar, dormir) ou, com null, para. */
+  setActivity(activity: Activity | null) {
+    this.net.send({ type: "activity", activity });
+  }
+
   /** Faz o personagem local caminhar até outro jogador e acompanhá-lo. */
   follow(playerId: string) {
     if (playerId === this.state.selfId || !this.state.players[playerId]) return;
@@ -323,7 +329,7 @@ export class Session {
         break;
       case "player-seated": {
         const before = selectTable(this.state).tableId;
-        patchPlayer(msg.id, { seatId: msg.seatId });
+        patchPlayer(msg.id, { seatId: msg.seatId, activity: null });
         if (selectTable(this.state).tableId !== before) this.setState({ chat: [] });
         break;
       }
@@ -335,11 +341,22 @@ export class Session {
           this.setState({ chat: [...this.state.chat, msg.message].slice(-200) });
         }
         break;
+      case "chat-history":
+        if (msg.tableId === selectTable(this.state).tableId) {
+          // Junta com o que chegou ao vivo enquanto o histórico carregava.
+          const byId = new Map([...msg.messages, ...this.state.chat].map((m) => [m.id, m]));
+          const chat = [...byId.values()].sort((a, b) => a.ts - b.ts).slice(-200);
+          this.setState({ chat });
+        }
+        break;
       case "dm":
         this.receiveDm(msg.message);
         break;
       case "signal":
         this.call?.handleSignal(msg.from, msg.data);
+        break;
+      case "player-activity":
+        patchPlayer(msg.id, { activity: msg.activity });
         break;
       case "player-gear":
         patchPlayer(msg.id, { ride: msg.ride, pet: msg.pet });

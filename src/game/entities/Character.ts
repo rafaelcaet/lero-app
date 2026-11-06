@@ -8,8 +8,13 @@ import {
 } from "../characters/characterSprites";
 import { ensureRideTexture, gearFrame, rideSpec } from "../graphics/gearSprites";
 import type { Seat } from "../maps/seats";
+import type { Activity } from "@/shared/activities";
 import { RIDE_SPEED, type PetKind, type RideKind } from "@/shared/shop";
+import { ActivityEffects } from "./ActivityEffects";
 import { Pet } from "./Pet";
+
+/** Pose de cada atividade (de frente). */
+const ACTIVITY_STATE = { eating: "eat", smoking: "smoke", sleeping: "sleep" } as const satisfies Record<Activity, AnimState>;
 
 export interface CharacterOptions {
   x: number;
@@ -49,6 +54,8 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
   /** Quanto o desenho do personagem sobe no veículo (px). */
   private lift = 0;
   private pet: Pet | null = null;
+  private _activity: Activity | null = null;
+  private effects: ActivityEffects | null = null;
 
   constructor(scene: Phaser.Scene, options: CharacterOptions) {
     const facing = options.facing ?? "down";
@@ -83,6 +90,23 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
 
   get ride(): RideKind | null {
     return this._ride;
+  }
+
+  get activity(): Activity | null {
+    return this._activity;
+  }
+
+  /** Começa (ou, com null, encerra) uma atividade: para e fica de frente fazendo algo. */
+  setActivity(activity: Activity | null) {
+    if (activity === this._activity) return;
+    this._activity = activity;
+    this.effects?.destroy();
+    this.effects = activity ? new ActivityEffects(this.scene, activity) : null;
+    if (activity) {
+      this._facing = "down";
+      this.body.setVelocity(0, 0);
+    }
+    this.playState(this._state, true);
   }
 
   /** Velocidade atual (mais rápida de bicicleta/carro). */
@@ -140,6 +164,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
    */
   move(dx: number, dy: number) {
     if (this._seat) return;
+    if (this._activity && (dx !== 0 || dy !== 0)) this.setActivity(null);
     this.velocity.set(dx, dy).normalize().scale(this.currentSpeed);
     this.body.setVelocity(this.velocity.x, this.velocity.y);
 
@@ -160,12 +185,15 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
 
   /** Aplica uma pose vinda de fora (ex.: estado de outro jogador). */
   setPose(facing: Direction, state: AnimState) {
+    if (this._activity && state !== "walk") return; // parado fazendo algo: continua de frente
+    if (state === "walk") this.setActivity(null);
     this._facing = facing;
     this.playState(state);
   }
 
   sitAt(seat: Seat) {
     this._seat = seat;
+    this.setActivity(null);
     this.body.stop();
     this.body.reset(seat.x, seat.y + SEAT_OFFSET_Y);
     this._facing = seat.facing;
@@ -187,6 +215,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
     // Ordenação por profundidade (quem está mais abaixo aparece na frente).
     this.setDepth(10 + this.y / 1000);
     this.nameTag?.setPosition(Math.round(this.x), Math.round(this.y - 17 - this.lift)).setDepth(this.depth + 1);
+    this.effects?.update(delta, this.x, this.y - this.lift, this.depth + 2);
     if (this.rideSprite) this.rideSprite.setDepth(this.depth + 0.0005);
 
     const feetY = this.y + FEET_BELOW_CENTER;
@@ -221,6 +250,8 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
   override destroy(fromScene?: boolean) {
     this.nameTag?.destroy();
     this.nameTag = null;
+    this.effects?.destroy();
+    this.effects = null;
     this.rideSprite?.destroy();
     this.rideSprite = null;
     this.pet?.destroy();
@@ -237,7 +268,8 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
   private playState(state: AnimState, force = false) {
     this._state = state;
     // No veículo o personagem não mexe as pernas: quem anda são as rodas.
-    const shown = state === "walk" && this._ride ? "idle" : state;
+    let shown: AnimState = state === "walk" && this._ride ? "idle" : state;
+    if (this._activity && shown === "idle") shown = ACTIVITY_STATE[this._activity];
     this.play(animKey(this.skinKey, shown, this._facing), !force);
   }
 }

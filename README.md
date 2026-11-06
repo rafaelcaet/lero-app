@@ -14,6 +14,31 @@ pnpm build && pnpm start # produção
 Um único processo (`server/main.mts`) serve o site **e** o WebSocket do jogo (`/ws`)
 na mesma porta.
 
+## Banco de dados (MongoDB)
+
+O servidor do jogo guarda no MongoDB tudo que precisa sobreviver a reinícios.
+Configure a conexão num `.env.local` (veja `.env.example`) ou em variáveis de ambiente:
+
+```bash
+cp .env.example .env.local   # preencha MONGODB_URI (e MONGODB_DB, padrão "lero")
+pnpm db:setup                # cria collections, validadores e índices (o servidor também faz ao subir)
+pnpm db:import-wallets       # opcional: importa as carteiras do antigo .data/wallets.json
+```
+
+Sem `MONGODB_URI` o jogo funciona, mas os dados ficam só em memória.
+
+| Collection | O que guarda |
+|---|---|
+| `players` | Perfil de cada jogador: nome, aparência, última posição, tempo total online |
+| `wallets` | Lerocoins, aluguéis ativos e veículo em uso |
+| `purchases` | Histórico de compras na loja (aluguel novo ou renovação, preço, saldo depois) |
+| `chat_messages` | Chat de cada mesa — as últimas 50 mensagens aparecem para quem senta |
+| `direct_messages` | Mensagens diretas (DMs) entre jogadores |
+| `sessions` | Cada entrada no escritório: quando conectou, quando saiu, duração |
+
+Todas usam como identificador do jogador a chave gerada no navegador (`lero:wallet-key`
+no localStorage). Ela nunca é enviada a outros jogadores.
+
 ## Deixar outras pessoas entrarem
 
 Câmera e microfone só funcionam em **HTTPS** (ou `localhost`). Acessar pelo IP da
@@ -60,6 +85,7 @@ A Vercel não mantém WebSocket, então o servidor do jogo roda em outro serviç
 | Health Check Path | `/health` |
 | Variável `ALLOWED_ORIGINS` | `https://SEU-APP.vercel.app` |
 | Variável `ICE_SERVERS` | (opcional) servidores TURN |
+| Variável `MONGODB_URI` | string de conexão do MongoDB (veja "Banco de dados") |
 
 **Vercel** → *Settings → Environment Variables*:
 

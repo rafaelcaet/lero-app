@@ -108,6 +108,11 @@ export class GameScene extends Phaser.Scene {
 
     this.follow.beforeUpdate();
     const locked = this.seats.update();
+    // Andar (ou seguir alguém) interrompe a atividade.
+    if (player.activity && (player.wantsToMove() || this.session?.getState().followTargetId)) {
+      player.setActivity(null);
+      this.session?.setActivity(null);
+    }
     if (!locked && !this.follow.update(time, delta)) {
       const { dx, dy } = player.readDirection();
       player.move(dx, dy);
@@ -152,6 +157,10 @@ export class GameScene extends Phaser.Scene {
         break;
       case "player-seated":
         this.remotes.get(msg.id)?.applySeat(msg.seatId);
+        break;
+      case "player-activity":
+        if (msg.id === this.session?.getState().selfId) this.player?.setActivity(msg.activity);
+        else this.remotes.get(msg.id)?.setActivity(msg.activity);
         break;
       case "player-gear":
         if (msg.id === this.session?.getState().selfId) this.player?.setGear(msg.ride, msg.pet);

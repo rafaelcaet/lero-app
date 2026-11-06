@@ -2,6 +2,7 @@
  * Protocolo WebSocket compartilhado entre cliente e servidor.
  * Só tipos e constantes puras: importável pelo Node (server/) e pelo Next.
  */
+import type { Activity } from "./activities.ts";
 import type { Appearance } from "./appearance.ts";
 import type { PetKind, RideKind, ShopItemId, Wallet } from "./shop.ts";
 
@@ -38,6 +39,8 @@ export interface PlayerState {
   ride: RideKind | null;
   /** Mascote alugado que segue o jogador. */
   pet: PetKind | null;
+  /** Atividade em andamento (comendo, fumando, dormindo). Cancelada ao andar ou sentar. */
+  activity: Activity | null;
 }
 
 export interface ChatMessage {
@@ -49,7 +52,7 @@ export interface ChatMessage {
   ts: number;
 }
 
-/** Mensagem direta (DM) entre dois jogadores. Não fica salva no servidor. */
+/** Mensagem direta (DM) entre dois jogadores. O servidor guarda um registro no banco. */
 export interface DirectMessage {
   id: string;
   fromId: string;
@@ -83,7 +86,9 @@ export type ClientMessage =
   | { type: "signal"; to: string; data: SignalData }
   | { type: "rent"; item: ShopItemId }
   /** Sobe/desce do veículo. null = andar a pé. */
-  | { type: "equip"; ride: RideKind | null };
+  | { type: "equip"; ride: RideKind | null }
+  /** Começa uma atividade (ou null para parar). */
+  | { type: "activity"; activity: Activity | null };
 
 export type SitRejectReason = "occupied" | "too-far" | "unknown-seat";
 
@@ -98,10 +103,13 @@ export type ServerMessage =
   | { type: "player-media"; id: string; media: MediaState }
   | { type: "sit-rejected"; seatId: string; reason: SitRejectReason }
   | { type: "chat"; message: ChatMessage }
+  /** Mensagens anteriores da mesa, enviadas ao sentar (da mais antiga para a mais nova). */
+  | { type: "chat-history"; tableId: string; messages: ChatMessage[] }
   /** Enviada ao destinatário e devolvida ao remetente (confirma o envio). */
   | { type: "dm"; message: DirectMessage }
   | { type: "signal"; from: string; data: SignalData }
   /** Carteira do próprio jogador. `serverNow` permite corrigir a diferença de relógio. */
   | { type: "wallet"; wallet: Wallet; serverNow: number }
   | { type: "rent-rejected"; item: ShopItemId; reason: RentRejectReason }
+  | { type: "player-activity"; id: string; activity: Activity | null }
   | { type: "player-gear"; id: string; ride: RideKind | null; pet: PetKind | null };

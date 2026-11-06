@@ -14,6 +14,7 @@ import { CoinCounter } from "@/components/shop/CoinCounter";
 import { ShopModal } from "@/components/shop/ShopModal";
 import { TablePanel } from "@/components/table/TablePanel";
 import { loadWalletKey } from "@/session/walletKey";
+import { ActivityMenu } from "./ActivityMenu";
 import { GameCanvas } from "./GameCanvas";
 import { TouchControls, useIsTouch } from "./TouchControls";
 
@@ -65,7 +66,8 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
   const followed = state.followTargetId ? state.players[state.followTargetId] : undefined;
   const onlineCount = Object.keys(state.players).length;
   const unread = unreadConversations(state);
-  const seated = Boolean(state.selfId && state.players[state.selfId]?.seatId);
+  const self = state.selfId ? state.players[state.selfId] : undefined;
+  const seated = Boolean(self?.seatId);
 
   const openPhone = () => {
     // Uma única conversa não lida: abre direto nela.
@@ -122,6 +124,15 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
 
         {/* Celular/tablet: joystick e botão de ação na tela. Some com janelas abertas. */}
         {isTouch && !overlay && !listOpen && <TouchControls seated={seated} />}
+
+        {/* Atividades (almoçar, fumar, dormir): só em pé; no celular fica acima do botão de ação. */}
+        {self && !seated && (
+          <ActivityMenu
+            current={self.activity}
+            onChange={(activity) => session.setActivity(activity)}
+            className={isTouch ? "bottom-32 right-5" : "bottom-4 right-4"}
+          />
+        )}
 
         {/* No celular a lista abre por cima do jogo. */}
         <button

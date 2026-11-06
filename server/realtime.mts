@@ -17,6 +17,7 @@ import {
   type PlayerState,
   type ServerMessage,
 } from "../src/shared/protocol.ts";
+import { isActivity } from "../src/shared/activities.ts";
 import { sanitizeAppearance } from "../src/shared/appearance.ts";
 import {
   COIN_INTERVAL_MS,
@@ -28,6 +29,7 @@ import {
   RENTAL_MAX_MS,
   SHOP_ITEM_BY_ID,
 } from "../src/shared/shop.ts";
+import { MemoryStore, type Store } from "./db/store.mts";
 import { gearOf, isWalletKey, publicWallet, WalletStore, type StoredWallet } from "./wallets.mts";
 
 /** Mensagens por segundo aceitas de cada conexão (acima disso, descarta). */
@@ -35,6 +37,8 @@ const MAX_MESSAGES_PER_SECOND = 60;
 const WORLD_W = MAP_WIDTH * TILE_SIZE;
 const WORLD_H = MAP_HEIGHT * TILE_SIZE;
 const FACINGS: ReadonlySet<string> = new Set<Facing>(["down", "left", "right", "up"]);
+/** Quantas mensagens antigas da mesa são enviadas ao sentar. */
+const CHAT_HISTORY_LIMIT = 50;
 
 const seats = new Map<string, Seat>(computeSeats(createOfficeLayout()).map((s) => [s.id, s]));
 /** seatId → playerId */
@@ -48,6 +52,11 @@ interface Client {
   windowCount: number;
   state: PlayerState | null; // null até o "join"
   wallet: StoredWallet | null; // idem
+  /** Carregando a carteira do banco (entre o "join" e o "welcome"). */
+  joining: boolean;
+  /** Sessão aberta no banco e quando começou. */
+  sessionId: Promise<string> | null;
+  connectedAt: number;
 }
 const clients = new Map<string, Client>();
 
@@ -79,9 +88,37 @@ function parse(raw: string): ClientMessage | null {
   }
 }
 
-// --- Lerocoins e loja ----------------------------------------------------
+// --- persistência -------------------------------------------------------
 
-let wallets = new WalletStore("");
+let store: Store = new MemoryStore();
+let wallets = new WalletStore(store);
+
+/** Gravação que não bloqueia o jogo: se falhar, só registra no log. */
+function persist(label: string, task: Promise<unknown>) {
+  task.catch((err) => console.warn(`[db] falha ao salvar ${label}:`, err));
+}
+
+/** Id de conexão atual de cada chave online (para mensagens antigas apontarem para quem está aqui). */
+function onlineIdsByKey(): Map<string, string> {
+  const ids = new Map<string, string>();
+  for (const [id, c] of clients) if (c.state && c.wallet) ids.set(c.wallet.key, id);
+  return ids;
+}
+
+async function sendChatHistory(id: string, client: Client, tableId: string) {
+  try {
+    const history = await store.recentChat(tableId, CHAT_HISTORY_LIMIT);
+    if (clients.get(id) !== client || tableOf(client.state) !== tableId) return; // saiu da mesa enquanto carregava
+    const ids = onlineIdsByKey();
+    if (client.wallet) ids.set(client.wallet.key, id);
+    const messages = history.map(({ playerKey, ...m }) => ({ ...m, fromId: ids.get(playerKey) ?? m.fromId }));
+    send(client, { type: "chat-history", tableId, messages });
+  } catch (err) {
+    console.warn(`[db] falha ao carregar o chat da mesa ${tableId}:`, err);
+  }
+}
+
+// --- Lerocoins e loja ----------------------------------------------------
 
 function clientsOfWallet(wallet: StoredWallet): Client[] {
   return [...clients.values()].filter((c) => c.state && c.wallet === wallet);
@@ -89,7 +126,7 @@ function clientsOfWallet(wallet: StoredWallet): Client[] {
 
 /** Envia a carteira aos clientes dela e avisa todos se o veículo/mascote mudou. */
 function walletChanged(wallet: StoredWallet, now = Date.now()) {
-  wallets.markDirty();
+  wallets.markDirty(wallet);
   const gear = gearOf(wallet, now);
   for (const c of clientsOfWallet(wallet)) {
     send(c, { type: "wallet", wallet: publicWallet(wallet), serverNow: now });
@@ -132,25 +169,41 @@ function handleRent(client: Client, wallet: StoredWallet, itemId: unknown) {
   if (wallet.coins < item.price) return send(client, { type: "rent-rejected", item: item.id, reason: "no-coins" });
 
   const now = Date.now();
-  const current = wallet.rentals.find((r) => r.item === item.id && r.expiresAt > now);
-  if (current) {
+  let rental = wallet.rentals.find((r) => r.item === item.id && r.expiresAt > now);
+  const kind = rental ? "extend" : "new";
+  if (rental) {
     // Já alugado: soma mais uma hora (mantém o mesmo mascote).
-    if (current.expiresAt - now + RENTAL_DURATION_MS > RENTAL_MAX_MS) {
+    if (rental.expiresAt - now + RENTAL_DURATION_MS > RENTAL_MAX_MS) {
       return send(client, { type: "rent-rejected", item: item.id, reason: "max-time" });
     }
-    current.expiresAt += RENTAL_DURATION_MS;
+    rental.expiresAt += RENTAL_DURATION_MS;
   } else {
     wallet.rentals = wallet.rentals.filter((r) => r.item !== item.id);
-    wallet.rentals.push({
+    rental = {
       item: item.id,
       expiresAt: now + RENTAL_DURATION_MS,
       ...(item.id === "pet" ? { pet: PET_KINDS[Math.floor(Math.random() * PET_KINDS.length)] } : {}),
-    });
+    };
+    wallet.rentals.push(rental);
     // Veículo novo já sai andando nele.
     if (isRideKind(item.id)) wallet.ride = item.id;
   }
   wallet.coins -= item.price;
   walletChanged(wallet, now);
+  // A carteira é gravada logo, para a compra não se perder se o servidor cair.
+  persist("carteira", wallets.flush());
+  persist(
+    "compra",
+    store.recordPurchase({
+      playerKey: wallet.key,
+      item: item.id,
+      pet: rental.pet ?? null,
+      price: item.price,
+      kind,
+      expiresAt: rental.expiresAt,
+      coinsAfter: wallet.coins,
+    }),
+  );
 }
 
 function handleEquip(wallet: StoredWallet, ride: unknown) {
@@ -168,7 +221,13 @@ function freeSeat(state: PlayerState) {
   state.seatId = null;
 }
 
-function handleSit(client: Client, state: PlayerState, seatId: string) {
+function setActivity(state: PlayerState, activity: PlayerState["activity"]) {
+  if (state.activity === activity) return;
+  state.activity = activity;
+  broadcast({ type: "player-activity", id: state.id, activity });
+}
+
+function handleSit(id: string, client: Client, state: PlayerState, seatId: string) {
   const seat = seats.get(seatId);
   if (!seat) return send(client, { type: "sit-rejected", seatId, reason: "unknown-seat" });
 
@@ -180,12 +239,15 @@ function handleSit(client: Client, state: PlayerState, seatId: string) {
     return send(client, { type: "sit-rejected", seatId, reason: "too-far" });
   }
 
+  const previousTable = tableOf(state);
   freeSeat(state);
   occupancy.set(seatId, state.id);
   state.seatId = seatId;
   state.anim = "idle";
   state.facing = seat.facing;
+  state.activity = null;
   broadcast({ type: "player-seated", id: state.id, seatId });
+  if (seat.tableId !== previousTable) void sendChatHistory(id, client, seat.tableId);
 }
 
 function handleStand(state: PlayerState) {
@@ -194,32 +256,76 @@ function handleStand(state: PlayerState) {
   broadcast({ type: "player-seated", id: state.id, seatId: null });
 }
 
+async function handleJoin(id: string, client: Client, msg: Extract<ClientMessage, { type: "join" }>) {
+  if (client.state || client.joining) return;
+  client.joining = true;
+  const key = isWalletKey(msg.walletKey) ? msg.walletKey : randomUUID();
+  let wallet: StoredWallet;
+  try {
+    wallet = await wallets.acquire(key);
+  } catch (err) {
+    // Sem a carteira não dá para entrar; o cliente reconecta e tenta de novo.
+    console.warn("[db] falha ao carregar carteira:", err);
+    client.joining = false;
+    client.ws.close(1011, "storage unavailable");
+    return;
+  }
+  client.joining = false;
+  if (clients.get(id) !== client) {
+    wallets.release(key); // desconectou enquanto carregava
+    return;
+  }
+
+  const name = String(msg.name ?? "").trim().slice(0, LIMITS.nameLength) || "Visitante";
+  const now = Date.now();
+  // Começa a contar o tempo agora (a menos que a mesma carteira já esteja online em outra aba).
+  if (clientsOfWallet(wallet).length === 0) wallet.lastAwardAt = now;
+  client.wallet = wallet;
+  const gear = gearOf(wallet, now);
+  const appearance = sanitizeAppearance(msg.appearance);
+  client.state = {
+    id,
+    name,
+    appearance,
+    x: isNum(msg.x) ? clamp(msg.x, 0, WORLD_W) : WORLD_W / 2,
+    y: isNum(msg.y) ? clamp(msg.y, 0, WORLD_H) : WORLD_H / 2,
+    facing: "down",
+    anim: "idle",
+    seatId: null,
+    activity: null,
+    media: { mic: false, cam: false },
+    ...gear,
+  };
+  const players = [...clients.values()].flatMap((c) => (c.state ? [c.state] : []));
+  send(client, { type: "welcome", selfId: id, players, iceServers });
+  send(client, { type: "wallet", wallet: publicWallet(wallet), serverNow: now });
+  broadcast({ type: "player-joined", player: client.state }, id);
+
+  client.connectedAt = now;
+  client.sessionId = store.playerJoined(key, id, { name, appearance }, now);
+  persist("entrada do jogador", client.sessionId);
+}
+
+/** Saída: libera a cadeira e a carteira e fecha a sessão no banco. */
+function handleLeave(id: string, client: Client) {
+  const { state, wallet, sessionId } = client;
+  if (!state || !wallet) return;
+  freeSeat(state);
+  broadcast({ type: "player-left", id });
+  wallets.release(wallet.key);
+  wallets.markDirty(wallet);
+  if (sessionId) {
+    const position = { x: state.x, y: state.y };
+    persist(
+      "saída do jogador",
+      sessionId.then((sid) => store.playerLeft(wallet.key, sid, position, client.connectedAt, Date.now())),
+    );
+  }
+}
+
 function handleMessage(id: string, client: Client, msg: ClientMessage) {
   if (msg.type === "join") {
-    if (client.state) return;
-    const name = String(msg.name ?? "").trim().slice(0, LIMITS.nameLength) || "Visitante";
-    const wallet = wallets.get(isWalletKey(msg.walletKey) ? msg.walletKey : randomUUID());
-    const now = Date.now();
-    // Começa a contar o tempo agora (a menos que a mesma carteira já esteja online em outra aba).
-    if (clientsOfWallet(wallet).length === 0) wallet.lastAwardAt = now;
-    client.wallet = wallet;
-    const gear = gearOf(wallet, now);
-    client.state = {
-      id,
-      name,
-      appearance: sanitizeAppearance(msg.appearance),
-      x: isNum(msg.x) ? clamp(msg.x, 0, WORLD_W) : WORLD_W / 2,
-      y: isNum(msg.y) ? clamp(msg.y, 0, WORLD_H) : WORLD_H / 2,
-      facing: "down",
-      anim: "idle",
-      seatId: null,
-      media: { mic: false, cam: false },
-      ...gear,
-    };
-    const players = [...clients.values()].flatMap((c) => (c.state ? [c.state] : []));
-    send(client, { type: "welcome", selfId: id, players, iceServers });
-    send(client, { type: "wallet", wallet: publicWallet(wallet), serverNow: now });
-    broadcast({ type: "player-joined", player: client.state }, id);
+    void handleJoin(id, client, msg);
     return;
   }
 
@@ -235,6 +341,8 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
       state.y = clamp(msg.y, 0, WORLD_H);
       state.facing = msg.facing;
       state.anim = msg.anim === "walk" ? "walk" : "idle";
+      if (state.anim === "walk") setActivity(state, null); // andar interrompe a atividade
+      else if (state.activity) state.facing = "down"; // atividades sempre de frente
       broadcast(
         { type: "player-moved", id, x: state.x, y: state.y, facing: state.facing, anim: state.anim },
         id,
@@ -245,8 +353,17 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
       return handleRent(client, wallet, msg.item);
     case "equip":
       return handleEquip(wallet, msg.ride);
+    case "activity": {
+      if (state.seatId) return; // sentado não faz atividades
+      if (msg.activity !== null && !isActivity(msg.activity)) return;
+      if (msg.activity) {
+        state.facing = "down";
+        state.anim = "idle";
+      }
+      return setActivity(state, msg.activity);
+    }
     case "sit":
-      return handleSit(client, state, String(msg.seatId));
+      return handleSit(id, client, state, String(msg.seatId));
     case "stand":
       return handleStand(state);
     case "media": {
@@ -269,6 +386,7 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
       for (const c of clients.values()) {
         if (tableOf(c.state) === tableId) send(c, { type: "chat", message });
       }
+      persist("mensagem do chat", store.saveChatMessage({ ...message, playerKey: wallet.key }));
       return;
     }
     case "dm": {
@@ -285,6 +403,20 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
       };
       send(target, { type: "dm", message });
       send(client, { type: "dm", message });
+      if (target.wallet) {
+        persist(
+          "mensagem direta",
+          store.saveDirectMessage({
+            id: message.id,
+            fromKey: wallet.key,
+            toKey: target.wallet.key,
+            fromName: state.name,
+            toName: target.state.name,
+            text,
+            ts: message.ts,
+          }),
+        );
+      }
       return;
     }
     case "signal": {
@@ -316,8 +448,8 @@ export interface RealtimeOptions {
   iceServers: RTCIceServer[];
   /** Origens permitidas para o WebSocket. Vazio = qualquer origem. */
   allowedOrigins: string[];
-  /** Arquivo JSON onde as carteiras são salvas. Vazio = só em memória. */
-  walletsFile: string;
+  /** Onde os dados são persistidos (MongoDB ou memória). Veja server/db/store.mts. */
+  store: Store;
 }
 
 export interface RealtimeServer {
@@ -327,12 +459,23 @@ export interface RealtimeServer {
 
 export function createRealtimeServer(options: RealtimeOptions): RealtimeServer {
   iceServers = options.iceServers;
-  wallets = new WalletStore(options.walletsFile);
+  store = options.store;
+  wallets = new WalletStore(store);
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 
   wss.on("connection", (ws) => {
     const id = randomUUID().slice(0, 8);
-    const client: Client = { ws, alive: true, windowStart: Date.now(), windowCount: 0, state: null, wallet: null };
+    const client: Client = {
+      ws,
+      alive: true,
+      windowStart: Date.now(),
+      windowCount: 0,
+      state: null,
+      wallet: null,
+      joining: false,
+      sessionId: null,
+      connectedAt: 0,
+    };
     clients.set(id, client);
 
     ws.on("pong", () => (client.alive = true));
@@ -343,10 +486,7 @@ export function createRealtimeServer(options: RealtimeOptions): RealtimeServer {
     });
     ws.on("close", () => {
       clients.delete(id);
-      if (client.state) {
-        freeSeat(client.state);
-        broadcast({ type: "player-left", id });
-      }
+      handleLeave(id, client);
     });
   });
 
@@ -374,12 +514,22 @@ export function createRealtimeServer(options: RealtimeOptions): RealtimeServer {
       }
       wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
     },
-    close() {
+    async close() {
       clearInterval(heartbeat);
       clearInterval(coinTimer);
-      wallets.close();
+      // Fecha as sessões abertas antes de gravar as carteiras e desconectar do banco.
+      const leaving = [...clients].flatMap(([id, c]) => (c.state && c.sessionId ? [{ id, c }] : []));
+      const now = Date.now();
+      await Promise.allSettled(
+        leaving.map(({ c }) =>
+          c.sessionId!.then((sid) => store.playerLeft(c.wallet!.key, sid, { x: c.state!.x, y: c.state!.y }, c.connectedAt, now)),
+        ),
+      );
+      for (const { c } of leaving) c.state = null; // o "close" do socket não grava de novo
+      await wallets.close().catch((err) => console.warn("[wallets] falha ao salvar ao desligar:", err));
       for (const c of clients.values()) c.ws.terminate();
-      return new Promise((resolve) => wss.close(() => resolve()));
+      await new Promise<void>((resolve) => wss.close(() => resolve()));
+      await store.close();
     },
   };
 }

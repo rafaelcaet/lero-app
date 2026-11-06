@@ -10,10 +10,14 @@
  *   ALLOWED_ORIGINS   domínios do site, separados por vírgula
  *                     ex.: https://lero-app-nu.vercel.app  (recomendado em produção)
  *   ICE_SERVERS       JSON com servidores STUN/TURN (veja server/main.mts)
- *   WALLETS_FILE      onde salvar as Lerocoins (padrão .data/wallets.json; vazio = só memória)
+ *   MONGODB_URI       string de conexão do MongoDB (sem ela, os dados ficam só em memória)
+ *   MONGODB_DB        nome do banco (padrão "lero")
+ *
+ * As variáveis também podem ficar num arquivo .env.local (carregado pelos scripts do package.json).
  */
 import { createServer } from "node:http";
 import { WS_PATH } from "../src/shared/protocol.ts";
+import { createStore } from "./db/store.mts";
 import { parseIceServers, parseList } from "./env.mts";
 import { createRealtimeServer, SEAT_COUNT } from "./realtime.mts";
 
@@ -21,9 +25,8 @@ const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? "0.0.0.0";
 const iceServers = parseIceServers(process.env.ICE_SERVERS);
 const allowedOrigins = parseList(process.env.ALLOWED_ORIGINS);
-const walletsFile = process.env.WALLETS_FILE ?? ".data/wallets.json";
 
-const realtime = createRealtimeServer({ iceServers, allowedOrigins, walletsFile });
+const realtime = createRealtimeServer({ iceServers, allowedOrigins, store: await createStore() });
 
 // HTTP só para health check dos serviços de hospedagem.
 const server = createServer((req, res) => {

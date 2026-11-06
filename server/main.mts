@@ -13,12 +13,16 @@
  *   ICE_SERVERS       JSON com servidores STUN/TURN, ex.:
  *                     [{"urls":"turn:turn.exemplo.com:3478","username":"u","credential":"s"}]
  *   ALLOWED_ORIGINS   origens aceitas no WebSocket, separadas por vírgula (opcional)
- *   WALLETS_FILE      onde salvar as Lerocoins (padrão .data/wallets.json; vazio = só memória)
+ *   MONGODB_URI       string de conexão do MongoDB (sem ela, os dados ficam só em memória)
+ *   MONGODB_DB        nome do banco (padrão "lero")
+ *
+ * As variáveis também podem ficar num arquivo .env.local (carregado pelos scripts do package.json).
  */
 import { EventEmitter } from "node:events";
 import { createServer, type Server } from "node:http";
 import next from "next";
 import { WS_PATH } from "../src/shared/protocol.ts";
+import { createStore } from "./db/store.mts";
 import { parseIceServers, parseList } from "./env.mts";
 import { createRealtimeServer, SEAT_COUNT } from "./realtime.mts";
 
@@ -28,7 +32,6 @@ const host = process.env.HOST ?? "0.0.0.0";
 
 const iceServers = parseIceServers(process.env.ICE_SERVERS);
 const allowedOrigins = parseList(process.env.ALLOWED_ORIGINS);
-const walletsFile = process.env.WALLETS_FILE ?? ".data/wallets.json";
 
 // O Next se registra sozinho no evento "upgrade" do servidor que recebe. Damos a ele
 // um emissor próprio para que só receba os upgrades que não são do jogo (ex.: HMR).
@@ -37,7 +40,7 @@ const app = next({ dev, hostname: host, port, httpServer: nextUpgrades as unknow
 await app.prepare();
 
 const handleRequest = app.getRequestHandler();
-const realtime = createRealtimeServer({ iceServers, allowedOrigins, walletsFile });
+const realtime = createRealtimeServer({ iceServers, allowedOrigins, store: await createStore() });
 
 const server = createServer((req, res) => {
   void handleRequest(req, res);

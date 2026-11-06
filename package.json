@@ -3,16 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/main.mts --dev",
+    "dev": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local server/main.mts --dev",
     "build": "next build",
-    "start": "NODE_ENV=production node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/main.mts",
-    "start:realtime": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/realtime-only.mts",
+    "start": "NODE_ENV=production node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local server/main.mts",
+    "start:realtime": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local server/realtime-only.mts",
     "share": "cloudflared tunnel --url http://localhost:3000",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "map:export": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-office-map.mts"
+    "map:export": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-office-map.mts",
+    "db:setup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-setup.mts",
+    "db:import-wallets": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/import-wallets.mts"
   },
   "dependencies": {
+    "mongodb": "^7.8.0",
     "next": "16.4.4",
     "phaser": "^3.90.0",
     "react": "19.3.0",
