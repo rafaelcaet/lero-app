@@ -15,6 +15,7 @@ import { TILE_SIZE } from "../constants";
 import { addRgbaTexture } from "../graphics/rgbaTexture";
 import { DIRECTIONS, POSES, renderCharacterSheet, type Direction } from "./characterArt";
 import { appearanceKey, type Appearance } from "@/shared/appearance";
+import type { CostumeId } from "@/shared/costumes";
 
 const T = TILE_SIZE;
 
@@ -28,15 +29,15 @@ const SIT = WALK_START + WALK_FRAME_COUNT;
 const ACTIVITY_START = SIT + 1;
 export const FRAMES_PER_DIRECTION = POSES.length;
 
-/** Chave da textura de uma aparência (a mesma aparência reaproveita o sheet). */
-export function characterTextureKey(appearance: Appearance): string {
-  return `character-${appearanceKey(appearance)}`;
+/** Chave da textura de uma aparência + fantasia (a mesma combinação reaproveita o sheet). */
+export function characterTextureKey(appearance: Appearance, costume: CostumeId | null = null): string {
+  return `character-${appearanceKey(appearance)}${costume ? `-${costume}` : ""}`;
 }
 
-/** Gera o sheet da aparência se ainda não existir e devolve a chave da textura. */
-export function ensureCharacterTexture(scene: Phaser.Scene, appearance: Appearance): string {
-  const key = characterTextureKey(appearance);
-  if (!scene.textures.exists(key)) generateCharacterSheet(scene, key, appearance);
+/** Gera o sheet da aparência (com a fantasia, se houver) se ainda não existir e devolve a chave da textura. */
+export function ensureCharacterTexture(scene: Phaser.Scene, appearance: Appearance, costume: CostumeId | null = null): string {
+  const key = characterTextureKey(appearance, costume);
+  if (!scene.textures.exists(key)) generateCharacterSheet(scene, key, appearance, costume);
   return key;
 }
 
@@ -49,8 +50,8 @@ export function animKey(textureKey: string, state: AnimState, dir: Direction): s
 }
 
 /** Gera o spritesheet de um personagem e registra frames numerados. */
-function generateCharacterSheet(scene: Phaser.Scene, textureKey: string, appearance: Appearance) {
-  const texture = addRgbaTexture(scene, textureKey, renderCharacterSheet(appearance));
+function generateCharacterSheet(scene: Phaser.Scene, textureKey: string, appearance: Appearance, costume: CostumeId | null) {
+  const texture = addRgbaTexture(scene, textureKey, renderCharacterSheet(appearance, costume));
   for (let row = 0; row < DIRECTIONS.length; row++) {
     for (let col = 0; col < FRAMES_PER_DIRECTION; col++) {
       texture.add(row * FRAMES_PER_DIRECTION + col, 0, col * T, row * T, T, T);

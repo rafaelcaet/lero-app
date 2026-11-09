@@ -40,6 +40,8 @@ try {
               $setOnInsert: {
                 coins: wallet.coins,
                 rentals: wallet.rentals.map((r) => ({ ...r, expiresAt: new Date(r.expiresAt) })),
+                owned: wallet.owned,
+                costume: wallet.costume,
                 ride: wallet.ride,
                 updatedAt: now,
               },

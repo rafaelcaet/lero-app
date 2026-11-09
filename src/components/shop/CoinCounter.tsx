@@ -19,12 +19,13 @@ export function CoinCounter({ coins, onOpenShop }: { coins: number; onOpenShop: 
       onMouseDown={(e) => e.preventDefault()}
       onClick={onOpenShop}
       title="Lerocoins: você ganha 1 a cada 10 segundos online. Clique para abrir a loja."
-      className="relative flex items-center gap-2 rounded-full border border-amber-400/30 bg-neutral-900/95 py-1 pl-1.5 pr-1 text-sm text-neutral-100 shadow-lg hover:border-amber-400/60"
+      // Mesmo formato dos botões do HUD (Falar, Ações), com o dourado da moeda no lugar do verde.
+      className="group relative flex h-10 select-none items-center gap-2 rounded-full border border-amber-400/30 bg-neutral-900/95 pl-1.5 pr-1.5 text-neutral-100 shadow-lg outline-none transition-[color,background-color,border-color,transform] hover:border-amber-400/60 hover:bg-neutral-800/95 focus-visible:ring-2 focus-visible:ring-amber-400/60 active:scale-95"
     >
-      <LerocoinIcon size={20} />
-      <span className="min-w-[2ch] font-display font-semibold tabular-nums text-amber-300">{coins}</span>
-      <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-200">
-        <ShopIcon size={13} /> Loja
+      <LerocoinIcon size={24} />
+      <span className="min-w-[2ch] font-display text-base font-semibold tabular-nums text-amber-300">{coins.toLocaleString("pt-BR")}</span>
+      <span className="flex h-7 items-center gap-1.5 rounded-full bg-amber-500/15 pl-2.5 pr-3 font-display text-sm font-semibold text-amber-200 transition-colors group-hover:bg-amber-500/25">
+        <ShopIcon size={15} className="text-amber-300" /> Loja
       </span>
       {gain && (
         <span

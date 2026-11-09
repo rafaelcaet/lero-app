@@ -6,7 +6,7 @@ import type { Emote } from "../../shared/bubbles.ts";
 import { createImage, darken, lighten, PixelCanvas, type Palette, type RgbaImage } from "./pixelArt.ts";
 
 /** Tamanho do emote em pixels virtuais (já com 1 px de margem para o contorno). */
-export const EMOTE_SIZE = 13;
+export const EMOTE_SIZE = 12;
 /** Pixels de tela por pixel virtual (igual aos personagens). */
 export const EMOTE_SCALE = 2;
 
@@ -25,17 +25,15 @@ const HAND: Palette = {
 
 /** Mão fechada com o polegar para cima (o negativo é a mesma arte de cabeça para baixo). */
 const THUMB_UP = [
-  ".....ll....",
-  ".....lsd...",
-  "....lssd...",
-  "....lssd...",
-  "...lssss...",
-  "kK.lssssssd",
-  "kK.sssddddd",
-  "kK.ssssssss",
-  "kK.sssddddd",
-  "kK.ssssssss",
-  "kK.dsssddd.",
+  "....ll...",
+  "....lsd..",
+  "...lssd..",
+  "kK.lsssss",
+  "kK.ssdddd",
+  "kK.ssssss",
+  "kK.ssdddd",
+  "kK.ssssss",
+  "kK.dsssd.",
 ];
 
 const HEART_ART = [

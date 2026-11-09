@@ -37,7 +37,7 @@ export function PlayerModal({ player, following, onFollow, onStopFollow, onMessa
         </button>
 
         <div className="flex items-center gap-4 pr-6">
-          <PlayerAvatar name={player.name} appearance={player.appearance} size="lg" />
+          <PlayerAvatar name={player.name} appearance={player.appearance} costume={player.costume} size="lg" />
           <div className="min-w-0">
             <h2 id="player-modal-name" className="truncate font-display text-xl font-semibold text-neutral-50">
               {player.name}

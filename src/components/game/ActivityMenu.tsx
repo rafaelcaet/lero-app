@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronIcon, SparklesIcon } from "@/components/icons";
 import { ACTIVITIES, type Activity } from "@/shared/activities";
+import { HudButton } from "./HudButton";
 
 /**
  * Botão com as atividades do personagem (almoçar, fumar, dormir). Com uma
@@ -54,28 +56,39 @@ export function ActivityMenu({
         </div>
       )}
       {active && !open ? (
-        <button
-          type="button"
-          onMouseDown={keepFocus}
+        <HudButton
           onClick={() => pick(null)}
-          className="flex items-center gap-2 rounded-full border border-emerald-500/40 bg-neutral-900/95 py-1.5 pl-3 pr-1.5 text-xs text-neutral-200 shadow-lg"
-        >
-          <span aria-hidden>{active.emoji}</span>
-          <strong className="font-semibold text-emerald-300">{active.label}</strong>
-          <span className="rounded-full bg-neutral-700 px-2.5 py-0.5 font-medium hover:bg-neutral-600">Parar</span>
-        </button>
+          title={`Parar: ${active.label}`}
+          active
+          icon={
+            <span aria-hidden className="text-base leading-none">
+              {active.emoji}
+            </span>
+          }
+          label={active.label}
+          trailing={
+            <span className="-mr-2 ml-1 rounded-full bg-neutral-800 px-3 py-1 font-sans text-xs font-medium text-neutral-200 group-hover:bg-neutral-700">
+              Parar
+            </span>
+          }
+        />
       ) : (
-        <button
-          type="button"
-          onMouseDown={keepFocus}
+        <HudButton
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           aria-haspopup="menu"
           title="Ações: almoçar, fumar, dormir…"
-          className="flex h-11 items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/95 px-4 text-sm font-medium text-neutral-100 shadow-lg hover:border-neutral-500"
-        >
-          <span aria-hidden>⏺️</span> Ações
-        </button>
+          active={open}
+          icon={<SparklesIcon size={18} />}
+          label="Ações"
+          trailing={
+            <ChevronIcon
+              direction="up"
+              size={14}
+              className={`-mr-1 text-neutral-500 transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          }
+        />
       )}
     </div>
   );

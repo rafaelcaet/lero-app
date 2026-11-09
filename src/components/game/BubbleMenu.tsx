@@ -9,7 +9,13 @@ import {
   sanitizeBubbleText,
   type Emote,
 } from "@/shared/bubbles";
+import { EMOTE_SCALE, EMOTE_SIZE } from "@/game/graphics/emoteArt";
+import { SpeechIcon } from "@/components/icons";
 import { emoteImageUrl } from "./emoteImage";
+import { HudButton } from "./HudButton";
+
+/** Tamanho do emote no menu (mesmo tamanho do jogo, sem distorcer os pixels). */
+const EMOTE_PX = EMOTE_SIZE * EMOTE_SCALE;
 
 /** Algum campo de texto está com o foco (aí o Enter é dele, não do atalho). */
 function typingSomewhere(): boolean {
@@ -126,24 +132,26 @@ export function BubbleMenu({
                 className="flex items-center justify-center rounded-lg py-1.5 hover:bg-neutral-700 active:scale-95"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- pixel art gerada no navegador */}
-                <img src={emoteImageUrl(e.id)} alt="" width={26} height={26} style={{ imageRendering: "pixelated" }} />
+                <img src={emoteImageUrl(e.id)} alt="" width={EMOTE_PX} height={EMOTE_PX} style={{ imageRendering: "pixelated" }} />
               </button>
             ))}
           </div>
         </div>
       )}
-      <button
-        type="button"
-        onMouseDown={keepFocus}
+      <HudButton
         onClick={() => (open ? close() : setOpen(true))}
         aria-expanded={open}
         title="Balão de fala (Enter)"
-        className={`flex h-11 items-center gap-2 rounded-full border bg-neutral-900/95 px-4 text-sm font-medium text-neutral-100 shadow-lg hover:border-neutral-500 ${
-          open ? "border-emerald-500/60" : "border-neutral-700"
-        }`}
-      >
-        <span aria-hidden>💬</span> Falar
-      </button>
+        active={open}
+        icon={<SpeechIcon size={18} />}
+        label="Falar"
+        trailing={
+          // Atalho só faz sentido com teclado: some em telas de toque.
+          <kbd className="ml-0.5 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-px font-sans text-[10px] font-medium text-neutral-400 pointer-coarse:hidden">
+            Enter
+          </kbd>
+        }
+      />
     </div>
   );
 }

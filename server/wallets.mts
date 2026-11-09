@@ -4,9 +4,14 @@
  * é gravado no store (MongoDB) de tempos em tempos e ao desligar o servidor.
  */
 import {
+  activeRental,
+  hasItem,
+  isCostumeId,
   isPetKind,
   isRideKind,
   isShopItemId,
+  type CostumeId,
+  type OwnedItem,
   type PetKind,
   type RideKind,
   type Rental,
@@ -26,21 +31,34 @@ const SAVE_INTERVAL_MS = 5_000;
 
 export const isWalletKey = (v: unknown): v is string => typeof v === "string" && KEY_PATTERN.test(v);
 
-/** Veículo e mascote ativos agora (o que os outros jogadores veem). */
-export function gearOf(wallet: Wallet, now: number): { ride: RideKind | null; pet: PetKind | null } {
-  const active = (item: Rental["item"]) => wallet.rentals.find((r) => r.item === item && r.expiresAt > now);
-  const ride = wallet.ride && active(wallet.ride) ? wallet.ride : null;
-  return { ride, pet: active("pet")?.pet ?? null };
+export interface Gear {
+  ride: RideKind | null;
+  pet: PetKind | null;
+  costume: CostumeId | null;
+}
+
+/** Veículo, mascote e fantasia ativos agora (o que os outros jogadores veem). Comprado vale mais que alugado. */
+export function gearOf(wallet: Wallet, now: number): Gear {
+  const ride = wallet.ride && hasItem(wallet, wallet.ride, now) ? wallet.ride : null;
+  const costume = wallet.costume && hasItem(wallet, wallet.costume, now) ? wallet.costume : null;
+  const ownedPet = wallet.owned.find((o) => o.item === "pet")?.pet;
+  return { ride, pet: ownedPet ?? activeRental(wallet, "pet", now)?.pet ?? null, costume };
 }
 
 /** Versão enviada ao cliente e gravada no banco (sem campos internos). */
 export function publicWallet(wallet: Wallet): Wallet {
-  return { coins: wallet.coins, rentals: wallet.rentals.map((r) => ({ ...r })), ride: wallet.ride };
+  return {
+    coins: wallet.coins,
+    rentals: wallet.rentals.map((r) => ({ ...r })),
+    owned: wallet.owned.map((o) => ({ ...o })),
+    ride: wallet.ride,
+    costume: wallet.costume,
+  };
 }
 
 /** Aceita qualquer valor (vindo do banco ou de um arquivo antigo) e devolve uma carteira válida. */
 export function sanitizeWallet(raw: unknown): Wallet {
-  if (!raw || typeof raw !== "object") return { coins: 0, rentals: [], ride: null };
+  if (!raw || typeof raw !== "object") return { coins: 0, rentals: [], owned: [], ride: null, costume: null };
   const w = raw as Partial<Wallet>;
   const coins = Number.isFinite(w.coins) ? Math.max(0, Math.floor(w.coins!)) : 0;
   const rentals = Array.isArray(w.rentals)
@@ -51,7 +69,19 @@ export function sanitizeWallet(raw: unknown): Wallet {
         return [rental];
       })
     : [];
-  return { coins, rentals, ride: isRideKind(w.ride) ? w.ride : null };
+  // Carteiras antigas não têm `owned`. Um item só pode ser comprado uma vez.
+  const owned: OwnedItem[] = [];
+  for (const o of Array.isArray(w.owned) ? w.owned : []) {
+    if (!o || !isShopItemId(o.item) || owned.some((x) => x.item === o.item)) continue;
+    owned.push(o.item === "pet" ? { item: "pet", pet: isPetKind(o.pet) ? o.pet : "pikachu" } : { item: o.item });
+  }
+  return {
+    coins,
+    rentals,
+    owned,
+    ride: isRideKind(w.ride) ? w.ride : null,
+    costume: isCostumeId(w.costume) ? w.costume : null,
+  };
 }
 
 export class WalletStore {

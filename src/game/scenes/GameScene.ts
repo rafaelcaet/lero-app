@@ -166,10 +166,15 @@ export class GameScene extends Phaser.Scene {
         if (msg.id === this.session?.getState().selfId) this.player?.showBubble(msg.bubble);
         else this.remotes.get(msg.id)?.showBubble(msg.bubble);
         break;
-      case "player-gear":
-        if (msg.id === this.session?.getState().selfId) this.player?.setGear(msg.ride, msg.pet);
-        else this.remotes.get(msg.id)?.setGear(msg.ride, msg.pet);
+      case "player-gear": {
+        const state = this.session?.getState();
+        const isSelf = msg.id === state?.selfId;
+        const character = isSelf ? this.player : this.remotes.get(msg.id);
+        const appearance = state?.players[msg.id]?.appearance ?? (isSelf ? this.session?.appearance : undefined);
+        if (appearance) character?.setSkin(ensureCharacterTexture(this, appearance, msg.costume ?? null));
+        character?.setGear(msg.ride, msg.pet);
         break;
+      }
     }
   }
 
@@ -179,7 +184,7 @@ export class GameScene extends Phaser.Scene {
     if (!state?.selfId) return;
     const self = state.players[state.selfId];
     if (self) {
-      this.player?.setSkin(ensureCharacterTexture(this, self.appearance));
+      this.player?.setSkin(ensureCharacterTexture(this, self.appearance, self.costume));
       this.player?.setGear(self.ride, self.pet);
     }
     for (const id of Object.keys(state.players)) this.addRemote(id);

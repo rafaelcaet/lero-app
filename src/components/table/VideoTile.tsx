@@ -14,6 +14,8 @@ interface VideoTileProps {
   self?: boolean;
   /** Volume de reprodução (0–1). */
   volume?: number;
+  /** Saída de áudio (id do dispositivo; "" = padrão do sistema). */
+  sinkId?: string;
 }
 
 const STATUS_TEXT: Record<Exclude<PeerStatus, "connected">, string> = {
@@ -22,7 +24,7 @@ const STATUS_TEXT: Record<Exclude<PeerStatus, "connected">, string> = {
   failed: "Sem conexão de mídia (a rede pode exigir TURN)",
 };
 
-export function VideoTile({ name, stream, mic, cam, status, self = false, volume = 1 }: VideoTileProps) {
+export function VideoTile({ name, stream, mic, cam, status, self = false, volume = 1, sinkId }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
@@ -45,6 +47,14 @@ export function VideoTile({ name, stream, mic, cam, status, self = false, volume
     if (videoRef.current) videoRef.current.volume = Math.min(1, Math.max(0, volume));
   }, [volume, stream]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    // setSinkId não existe no Safari: lá o áudio sai sempre no padrão do sistema.
+    if (self || sinkId === undefined || !video || !("setSinkId" in video)) return;
+    if (video.sinkId === sinkId) return;
+    video.setSinkId(sinkId).catch((err) => console.warn("[VideoTile] setSinkId", err));
+  }, [sinkId, self]);
+
   const showVideo = cam && !!stream;
   const statusText = status && status !== "connected" ? STATUS_TEXT[status] : null;
 
@@ -60,7 +70,7 @@ export function VideoTile({ name, stream, mic, cam, status, self = false, volume
       />
       {!showVideo && (
         <div className="absolute inset-0 grid place-items-center">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-neutral-700 text-lg font-semibold text-neutral-200">
+          <span className="grid h-14 w-14 place-items-center rounded-full bg-neutral-700 text-2xl font-semibold text-neutral-200">
             {name.slice(0, 1).toUpperCase()}
           </span>
         </div>
@@ -81,7 +91,7 @@ export function VideoTile({ name, stream, mic, cam, status, self = false, volume
           🔈 Clique para ativar o áudio
         </button>
       )}
-      <span className="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white">
+      <span className="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
         {!mic && <span aria-label="microfone desligado">🔇</span>}
         {self ? `${name} (você)` : name}
       </span>

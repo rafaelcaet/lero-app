@@ -24,8 +24,9 @@ export interface Purchase {
   item: ShopItemId;
   pet: PetKind | null;
   price: number;
-  kind: "new" | "extend";
-  expiresAt: number;
+  kind: "new" | "extend" | "buy";
+  /** null na compra definitiva (não expira). */
+  expiresAt: number | null;
   coinsAfter: number;
 }
 
@@ -77,7 +78,9 @@ const toWalletDoc = (playerKey: string, wallet: Wallet, now: Date): WalletDoc =>
     expiresAt: new Date(r.expiresAt),
     ...(r.pet ? { pet: r.pet } : {}),
   })),
+  owned: wallet.owned.map((o) => ({ item: o.item, ...(o.pet ? { pet: o.pet } : {}) })),
   ride: wallet.ride,
+  costume: wallet.costume,
   updatedAt: now,
 });
 
@@ -88,7 +91,9 @@ const fromWalletDoc = (doc: WalletDoc): Wallet => ({
     expiresAt: r.expiresAt.getTime(),
     ...(r.pet ? { pet: r.pet } : {}),
   })),
+  owned: (doc.owned ?? []).map((o) => ({ item: o.item, ...(o.pet ? { pet: o.pet } : {}) })),
   ride: doc.ride,
+  costume: doc.costume ?? null,
 });
 
 export class MongoStore implements Store {
@@ -175,7 +180,7 @@ export class MongoStore implements Store {
       pet: p.pet,
       price: p.price,
       kind: p.kind,
-      expiresAt: new Date(p.expiresAt),
+      expiresAt: p.expiresAt === null ? null : new Date(p.expiresAt),
       coinsAfter: p.coinsAfter,
       createdAt: new Date(),
     });

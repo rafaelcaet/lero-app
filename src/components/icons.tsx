@@ -194,3 +194,42 @@ export function ShopIcon(props: IconProps) {
     </Stroke>
   );
 }
+
+/** Balão de fala com reticências (estilo Lucide "message-square-more"). */
+export function SpeechIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M8 10h.01" />
+      <path d="M12 10h.01" />
+      <path d="M16 10h.01" />
+    </Stroke>
+  );
+}
+
+/** Brilhos (estilo Lucide "sparkles"): ações do personagem. */
+export function SparklesIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+      <path d="M20 3v4" />
+      <path d="M22 5h-4" />
+      <path d="M4 17v2" />
+      <path d="M5 18H3" />
+    </Stroke>
+  );
+}
+
+/** Barras de áudio (estilo Lucide "audio-lines"): sensibilidade do microfone. */
+export function AudioLinesIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M2 10v3" />
+      <path d="M6 6v11" />
+      <path d="M10 3v18" />
+      <path d="M14 8v7" />
+      <path d="M18 5v13" />
+      <path d="M22 10v3" />
+    </Stroke>
+  );
+}

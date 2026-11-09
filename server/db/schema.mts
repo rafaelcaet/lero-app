@@ -10,7 +10,7 @@
  */
 import type { Collection, Db, Document, IndexDescription } from "mongodb";
 import type { Appearance } from "../../src/shared/appearance.ts";
-import type { PetKind, RideKind, ShopItemId } from "../../src/shared/shop.ts";
+import { COSTUME_IDS, type CostumeId, type PetKind, type RideKind, type ShopItemId } from "../../src/shared/shop.ts";
 
 // --- documentos -----------------------------------------------------------
 
@@ -33,26 +33,35 @@ export interface RentalDoc {
   pet?: PetKind;
 }
 
-/** `wallets`: Lerocoins, aluguéis ativos e veículo em uso. */
+export interface OwnedItemDoc {
+  item: ShopItemId;
+  pet?: PetKind;
+}
+
+/** `wallets`: Lerocoins, aluguéis ativos, itens comprados e veículo em uso. */
 export interface WalletDoc {
   _id: string; // playerKey
   coins: number;
   rentals: RentalDoc[];
+  /** Itens comprados. Ausente em carteiras gravadas antes da compra existir. */
+  owned?: OwnedItemDoc[];
   ride: RideKind | null;
+  /** Fantasia vestida. Ausente em carteiras gravadas antes das fantasias. */
+  costume?: CostumeId | null;
   updatedAt: Date;
 }
 
-/** `purchases`: histórico de compras na loja (um documento por aluguel ou renovação). */
+/** `purchases`: histórico da loja (um documento por aluguel, renovação ou compra). */
 export interface PurchaseDoc {
   _id: string;
   playerKey: string;
   item: ShopItemId;
   pet: PetKind | null;
   price: number;
-  /** "new" = aluguel novo; "extend" = mais uma hora num aluguel ativo. */
-  kind: "new" | "extend";
-  /** Fim do aluguel depois desta compra. */
-  expiresAt: Date;
+  /** "new" = aluguel novo; "extend" = mais uma hora num aluguel ativo; "buy" = compra definitiva. */
+  kind: "new" | "extend" | "buy";
+  /** Fim do aluguel depois desta compra (null na compra definitiva, que não expira). */
+  expiresAt: Date | null;
   /** Saldo depois da compra. */
   coinsAfter: number;
   createdAt: Date;
@@ -128,7 +137,7 @@ const str = { bsonType: "string" };
 const date = { bsonType: "date" };
 // O driver grava inteiros fora da faixa de 32 bits como double: aceita os três.
 const nonNegative = { bsonType: ["int", "long", "double"], minimum: 0 };
-const shopItem = { enum: ["bike", "car", "pet"] };
+const shopItem = { enum: ["bike", "car", "pet", ...COSTUME_IDS] };
 const petKind = { enum: ["pikachu", "squirtle", "charmander", "bulbasaur"] };
 
 interface CollectionSpec {
@@ -172,7 +181,18 @@ const SPECS: Record<keyof Collections, CollectionSpec> = {
             properties: { item: shopItem, expiresAt: date, pet: petKind },
           },
         },
+        // Fora de `required`: carteiras antigas não têm o campo.
+        owned: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["item"],
+            properties: { item: shopItem, pet: petKind },
+          },
+        },
         ride: { enum: ["bike", "car", null] },
+        // Fora de `required`: carteiras antigas não têm o campo.
+        costume: { enum: [...COSTUME_IDS, null] },
         updatedAt: date,
       },
     },
@@ -188,8 +208,8 @@ const SPECS: Record<keyof Collections, CollectionSpec> = {
         item: shopItem,
         pet: { enum: [...petKind.enum, null] },
         price: nonNegative,
-        kind: { enum: ["new", "extend"] },
-        expiresAt: date,
+        kind: { enum: ["new", "extend", "buy"] },
+        expiresAt: { bsonType: ["date", "null"] },
         coinsAfter: nonNegative,
         createdAt: date,
       },

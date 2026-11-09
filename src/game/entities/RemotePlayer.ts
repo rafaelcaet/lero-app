@@ -16,7 +16,7 @@ export class RemotePlayer extends Character {
       x: state.x,
       y: state.y,
       speed: 0,
-      textureKey: ensureCharacterTexture(scene, state.appearance),
+      textureKey: ensureCharacterTexture(scene, state.appearance, state.costume),
       facing: state.facing,
       name: state.name,
     });

@@ -5,7 +5,7 @@
 import type { Activity } from "./activities.ts";
 import type { Appearance } from "./appearance.ts";
 import type { Bubble } from "./bubbles.ts";
-import type { PetKind, RideKind, ShopItemId, Wallet } from "./shop.ts";
+import type { CostumeId, PetKind, RideKind, ShopItemId, Wallet } from "./shop.ts";
 
 /** Caminho do WebSocket do jogo (mesma origem do site). */
 export const WS_PATH = "/ws";
@@ -40,6 +40,8 @@ export interface PlayerState {
   ride: RideKind | null;
   /** Mascote alugado que segue o jogador. */
   pet: PetKind | null;
+  /** Fantasia vestida (alugada ou comprada na loja). */
+  costume: CostumeId | null;
   /** Atividade em andamento (comendo, fumando, dormindo). Cancelada ao andar ou sentar. */
   activity: Activity | null;
 }
@@ -86,8 +88,12 @@ export type ClientMessage =
   | { type: "media"; media: MediaState }
   | { type: "signal"; to: string; data: SignalData }
   | { type: "rent"; item: ShopItemId }
+  /** Compra definitiva. `pet` escolhe o mascote (obrigatório ao comprar o mascote). */
+  | { type: "buy"; item: ShopItemId; pet?: PetKind }
   /** Sobe/desce do veículo. null = andar a pé. */
   | { type: "equip"; ride: RideKind | null }
+  /** Veste uma fantasia alugada/comprada. null = tira. */
+  | { type: "wear"; costume: CostumeId | null }
   /** Começa uma atividade (ou null para parar). */
   | { type: "activity"; activity: Activity | null }
   /** Balão de fala (texto curto ou emote) ao lado do personagem. */
@@ -95,7 +101,9 @@ export type ClientMessage =
 
 export type SitRejectReason = "occupied" | "too-far" | "unknown-seat";
 
-export type RentRejectReason = "no-coins" | "max-time";
+/** "owned": o item já foi comprado (não faz sentido alugar nem comprar de novo). */
+export type RentRejectReason = "no-coins" | "max-time" | "owned";
+export type BuyRejectReason = "no-coins" | "owned";
 
 export type ServerMessage =
   | { type: "welcome"; selfId: string; players: PlayerState[]; iceServers: RTCIceServer[] }
@@ -114,7 +122,8 @@ export type ServerMessage =
   /** Carteira do próprio jogador. `serverNow` permite corrigir a diferença de relógio. */
   | { type: "wallet"; wallet: Wallet; serverNow: number }
   | { type: "rent-rejected"; item: ShopItemId; reason: RentRejectReason }
+  | { type: "buy-rejected"; item: ShopItemId; reason: BuyRejectReason }
   | { type: "player-activity"; id: string; activity: Activity | null }
   /** Balão de fala de um jogador (enviado a todos, inclusive a quem falou). */
   | { type: "player-bubble"; id: string; bubble: Bubble }
-  | { type: "player-gear"; id: string; ride: RideKind | null; pet: PetKind | null };
+  | { type: "player-gear"; id: string; ride: RideKind | null; pet: PetKind | null; costume: CostumeId | null };

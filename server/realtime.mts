@@ -23,12 +23,18 @@ import { sanitizeAppearance } from "../src/shared/appearance.ts";
 import {
   COIN_INTERVAL_MS,
   COINS_PER_INTERVAL,
+  hasItem,
+  isCostumeId,
+  isPetKind,
   isRideKind,
   isShopItemId,
+  ownsItem,
   PET_KINDS,
   RENTAL_DURATION_MS,
   RENTAL_MAX_MS,
   SHOP_ITEM_BY_ID,
+  type OwnedItem,
+  type PetKind,
 } from "../src/shared/shop.ts";
 import { MemoryStore, type Store } from "./db/store.mts";
 import { gearOf, isWalletKey, publicWallet, WalletStore, type StoredWallet } from "./wallets.mts";
@@ -127,16 +133,17 @@ function clientsOfWallet(wallet: StoredWallet): Client[] {
   return [...clients.values()].filter((c) => c.state && c.wallet === wallet);
 }
 
-/** Envia a carteira aos clientes dela e avisa todos se o veículo/mascote mudou. */
+/** Envia a carteira aos clientes dela e avisa todos se o veículo, mascote ou fantasia mudou. */
 function walletChanged(wallet: StoredWallet, now = Date.now()) {
   wallets.markDirty(wallet);
   const gear = gearOf(wallet, now);
   for (const c of clientsOfWallet(wallet)) {
     send(c, { type: "wallet", wallet: publicWallet(wallet), serverNow: now });
     const state = c.state!;
-    if (state.ride !== gear.ride || state.pet !== gear.pet) {
+    if (state.ride !== gear.ride || state.pet !== gear.pet || state.costume !== gear.costume) {
       state.ride = gear.ride;
       state.pet = gear.pet;
+      state.costume = gear.costume;
       broadcast({ type: "player-gear", id: state.id, ...gear });
     }
   }
@@ -159,7 +166,9 @@ function walletTick() {
     const before = wallet.rentals.length;
     wallet.rentals = wallet.rentals.filter((r) => r.expiresAt > now);
     if (wallet.rentals.length !== before) {
-      if (wallet.ride && !wallet.rentals.some((r) => r.item === wallet.ride)) wallet.ride = null;
+      // Aluguel acabou: desce do veículo / tira a fantasia, a menos que sejam comprados.
+      if (wallet.ride && !hasItem(wallet, wallet.ride, now)) wallet.ride = null;
+      if (wallet.costume && !hasItem(wallet, wallet.costume, now)) wallet.costume = null;
       changed = true;
     }
     if (changed) walletChanged(wallet, now);
@@ -169,6 +178,7 @@ function walletTick() {
 function handleRent(client: Client, wallet: StoredWallet, itemId: unknown) {
   const item = isShopItemId(itemId) ? SHOP_ITEM_BY_ID.get(itemId) : undefined;
   if (!item) return;
+  if (ownsItem(wallet, item.id)) return send(client, { type: "rent-rejected", item: item.id, reason: "owned" });
   if (wallet.coins < item.price) return send(client, { type: "rent-rejected", item: item.id, reason: "no-coins" });
 
   const now = Date.now();
@@ -188,8 +198,9 @@ function handleRent(client: Client, wallet: StoredWallet, itemId: unknown) {
       ...(item.id === "pet" ? { pet: PET_KINDS[Math.floor(Math.random() * PET_KINDS.length)] } : {}),
     };
     wallet.rentals.push(rental);
-    // Veículo novo já sai andando nele.
+    // Veículo novo já sai andando nele; fantasia nova já sai vestida.
     if (isRideKind(item.id)) wallet.ride = item.id;
+    if (isCostumeId(item.id)) wallet.costume = item.id;
   }
   wallet.coins -= item.price;
   walletChanged(wallet, now);
@@ -209,11 +220,55 @@ function handleRent(client: Client, wallet: StoredWallet, itemId: unknown) {
   );
 }
 
+/** Compra definitiva: o item fica com o jogador para sempre. O mascote é escolhido, não sorteado. */
+function handleBuy(client: Client, wallet: StoredWallet, itemId: unknown, petKind: unknown) {
+  const item = isShopItemId(itemId) ? SHOP_ITEM_BY_ID.get(itemId) : undefined;
+  if (!item) return;
+  if (item.id === "pet" && !isPetKind(petKind)) return;
+  if (ownsItem(wallet, item.id)) return send(client, { type: "buy-rejected", item: item.id, reason: "owned" });
+  if (wallet.coins < item.buyPrice) return send(client, { type: "buy-rejected", item: item.id, reason: "no-coins" });
+
+  const now = Date.now();
+  const owned: OwnedItem = item.id === "pet" ? { item: "pet", pet: petKind as PetKind } : { item: item.id };
+  wallet.owned.push(owned);
+  // Um aluguel ativo do mesmo item perde o sentido (o tempo restante não é devolvido).
+  wallet.rentals = wallet.rentals.filter((r) => r.item !== item.id);
+  // Veículo novo já sai andando nele; fantasia nova já sai vestida.
+  if (isRideKind(item.id)) wallet.ride = item.id;
+  if (isCostumeId(item.id)) wallet.costume = item.id;
+  wallet.coins -= item.buyPrice;
+  walletChanged(wallet, now);
+  persist("carteira", wallets.flush());
+  persist(
+    "compra",
+    store.recordPurchase({
+      playerKey: wallet.key,
+      item: item.id,
+      pet: owned.pet ?? null,
+      price: item.buyPrice,
+      kind: "buy",
+      expiresAt: null,
+      coinsAfter: wallet.coins,
+    }),
+  );
+}
+
 function handleEquip(wallet: StoredWallet, ride: unknown) {
   const now = Date.now();
-  const next = isRideKind(ride) && wallet.rentals.some((r) => r.item === ride && r.expiresAt > now) ? ride : null;
+  const next = isRideKind(ride) && hasItem(wallet, ride, now) ? ride : null;
   if (next === wallet.ride) return;
   wallet.ride = next;
+  walletChanged(wallet, now);
+}
+
+/** Veste (ou, com null, tira) uma fantasia alugada ou comprada. */
+function handleWear(wallet: StoredWallet, costume: unknown) {
+  const now = Date.now();
+  // Fantasia inválida ou que o jogador não tem: ignora (não tira a que está vestida).
+  if (costume !== null && !(isCostumeId(costume) && hasItem(wallet, costume, now))) return;
+  const next = costume;
+  if (next === wallet.costume) return;
+  wallet.costume = next;
   walletChanged(wallet, now);
 }
 
@@ -354,8 +409,12 @@ function handleMessage(id: string, client: Client, msg: ClientMessage) {
     }
     case "rent":
       return handleRent(client, wallet, msg.item);
+    case "buy":
+      return handleBuy(client, wallet, msg.item, msg.pet);
     case "equip":
       return handleEquip(wallet, msg.ride);
+    case "wear":
+      return handleWear(wallet, msg.costume);
     case "activity": {
       if (state.seatId) return; // sentado não faz atividades
       if (msg.activity !== null && !isActivity(msg.activity)) return;

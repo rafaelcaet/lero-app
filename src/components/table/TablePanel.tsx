@@ -30,7 +30,7 @@ export function TablePanel({ session, state }: TablePanelProps) {
 
   return (
     <aside
-      className="absolute inset-x-2 bottom-2 flex max-h-[60%] flex-col gap-2 rounded-lg border border-neutral-700 bg-neutral-900/95 p-2 text-neutral-200 shadow-xl sm:inset-x-auto sm:inset-y-2 sm:right-2 sm:max-h-none sm:w-72"
+      className="absolute inset-x-2 bottom-2 flex max-h-[60%] flex-col gap-2 rounded-lg border border-neutral-700 bg-neutral-900/95 p-2 text-neutral-200 shadow-xl sm:inset-x-auto sm:inset-y-2 sm:right-2 sm:max-h-none sm:w-96 lg:w-[28rem]"
       aria-label="Conversa da mesa"
     >
       <header className="flex items-center justify-between text-xs text-neutral-400">
@@ -55,14 +55,11 @@ export function TablePanel({ session, state }: TablePanelProps) {
 
       {call.error && <p className="rounded bg-amber-900/50 px-2 py-1 text-[11px] text-amber-200">{call.error}</p>}
 
-      <div className="grid shrink-0 grid-cols-2 gap-1.5 overflow-y-auto sm:max-h-[45%]">
-        <VideoTile
-          name={self?.name ?? session.name}
-          stream={call.localStream}
-          mic={call.mic && call.hasMic}
-          cam={call.cam && call.hasCam}
-          self
-        />
+      {/* Vídeos com teto de altura para o chat nunca sumir. Em telas largas e altas, com uma
+          só pessoa na conversa, ficam empilhados em largura total; no celular deitado, lado a lado. */}
+      <div
+        className={`grid max-h-[30dvh] shrink-0 grid-cols-2 gap-1.5 overflow-y-auto sm:max-h-[50%] sm:tall:max-h-[65%] ${others.length === 1 ? "sm:tall:grid-cols-1" : ""}`}
+      >
         {others.map((p) => (
           <VideoTile
             key={p.id}
@@ -72,8 +69,16 @@ export function TablePanel({ session, state }: TablePanelProps) {
             cam={p.media.cam}
             status={call.peerStatus[p.id] ?? "connecting"}
             volume={call.outputVolume}
+            sinkId={call.canPickSpeaker ? call.speakerDeviceId : undefined}
           />
         ))}
+        <VideoTile
+          name={self?.name ?? session.name}
+          stream={call.localStream}
+          mic={call.mic && call.hasMic}
+          cam={call.cam && call.hasCam}
+          self
+        />
       </div>
 
       <ChatBox messages={state.chat} selfId={selfId} onSend={(text) => session.sendChat(text)} />

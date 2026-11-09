@@ -6,16 +6,17 @@ import {
   type DirectMessage,
   type Facing,
   type MoveAnim,
+  type BuyRejectReason,
   type PlayerState,
   type RentRejectReason,
   type ServerMessage,
 } from "@/shared/protocol";
 import type { Activity } from "@/shared/activities";
 import { sanitizeBubbleText, type Emote } from "@/shared/bubbles";
-import type { RideKind, ShopItemId, Wallet } from "@/shared/shop";
+import type { CostumeId, PetKind, RideKind, ShopItemId, Wallet } from "@/shared/shop";
 import { Emitter } from "./Emitter";
 import { NetworkClient, type ConnectionStatus } from "./NetworkClient";
-import { INITIAL_CALL_STATE, TableCall, type CallState } from "./TableCall";
+import { INITIAL_CALL_STATE, TableCall, type CallState, type DeviceKind } from "./TableCall";
 
 /** Conversa de DM com outro jogador (só em memória, nesta aba). */
 export interface DmConversation {
@@ -44,6 +45,8 @@ export interface SessionState {
   serverClockOffset: number;
   /** Último aluguel recusado (para a loja mostrar o motivo). */
   rentRejection: { item: ShopItemId; reason: RentRejectReason; at: number } | null;
+  /** Última compra recusada. */
+  buyRejection: { item: ShopItemId; reason: BuyRejectReason; at: number } | null;
 }
 
 /**
@@ -52,7 +55,14 @@ export interface SessionState {
  */
 function withAppearance(player: PlayerState, fallback: Appearance): PlayerState {
   const appearance = player.appearance ? sanitizeAppearance(player.appearance) : fallback;
-  return { ...player, appearance, ride: player.ride ?? null, pet: player.pet ?? null, activity: player.activity ?? null };
+  return {
+    ...player,
+    appearance,
+    ride: player.ride ?? null,
+    pet: player.pet ?? null,
+    costume: player.costume ?? null,
+    activity: player.activity ?? null,
+  };
 }
 
 /** Quantas conversas têm mensagens não lidas. */
@@ -77,6 +87,7 @@ const INITIAL_STATE: SessionState = {
   wallet: null,
   serverClockOffset: 0,
   rentRejection: null,
+  buyRejection: null,
 };
 
 const MAX_DM_HISTORY = 300;
@@ -204,7 +215,18 @@ export class Session {
     this.net.send({ type: "rent", item });
   }
 
-  /** Sobe num veículo alugado (ou desce, com null). */
+  /** Compra um item para sempre. O mascote é escolhido (`pet`), não sorteado. */
+  buy(item: ShopItemId, pet?: PetKind) {
+    this.setState({ buyRejection: null });
+    this.net.send({ type: "buy", item, ...(pet ? { pet } : {}) });
+  }
+
+  /** Veste uma fantasia alugada ou comprada (ou tira, com null). */
+  wearCostume(costume: CostumeId | null) {
+    this.net.send({ type: "wear", costume });
+  }
+
+  /** Sobe num veículo alugado ou comprado (ou desce, com null). */
   equipRide(ride: RideKind | null) {
     this.net.send({ type: "equip", ride });
   }
@@ -249,6 +271,21 @@ export class Session {
 
   setOutputVolume(volume: number) {
     this.call?.setOutputVolume(volume);
+  }
+
+  /** Sensibilidade do microfone (0–1): abaixo desse nível não transmite. 0 desliga. */
+  setMicSensitivity(value: number) {
+    this.call?.setMicSensitivity(value);
+  }
+
+  /** Escolhe microfone, câmera ou saída de áudio ("" = padrão do sistema). */
+  setMediaDevice(kind: DeviceKind, id: string) {
+    this.call?.setDevice(kind, id);
+  }
+
+  /** Pede permissão só para listar os nomes dos dispositivos (antes de sentar). */
+  requestDeviceAccess() {
+    void this.call?.requestDeviceAccess();
   }
 
   /** Nível do microfone (0–1) para o medidor; 0 sem chamada ativa. */
@@ -371,13 +408,20 @@ export class Session {
         patchPlayer(msg.id, { activity: msg.activity });
         break;
       case "player-gear":
-        patchPlayer(msg.id, { ride: msg.ride, pet: msg.pet });
+        patchPlayer(msg.id, { ride: msg.ride, pet: msg.pet, costume: msg.costume ?? null });
         break;
       case "wallet":
-        this.setState({ wallet: msg.wallet, serverClockOffset: msg.serverNow - Date.now() });
+        // Servidor antigo (sem compras) não manda `owned`.
+        this.setState({
+          wallet: { ...msg.wallet, owned: msg.wallet.owned ?? [], costume: msg.wallet.costume ?? null },
+          serverClockOffset: msg.serverNow - Date.now(),
+        });
         break;
       case "rent-rejected":
         this.setState({ rentRejection: { item: msg.item, reason: msg.reason, at: Date.now() } });
+        break;
+      case "buy-rejected":
+        this.setState({ buyRejection: { item: msg.item, reason: msg.reason, at: Date.now() } });
         break;
       case "sit-rejected":
         break;

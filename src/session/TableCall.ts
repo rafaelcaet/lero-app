@@ -1,8 +1,16 @@
 import type { MediaState, SignalData } from "@/shared/protocol";
 import { Emitter } from "./Emitter";
 import { loadMediaPrefs, MAX_INPUT_VOLUME, saveMediaPrefs } from "./mediaPrefs";
+import { createNoiseGate, LEVEL_SCALE } from "./noiseGate";
 
 export type PeerStatus = "connecting" | "connected" | "reconnecting" | "failed";
+
+export type DeviceKind = "audioinput" | "videoinput" | "audiooutput";
+
+export interface MediaDevice {
+  id: string;
+  label: string;
+}
 
 export interface CallState {
   /** Há pelo menos uma outra pessoa na mesa. */
@@ -20,6 +28,18 @@ export interface CallState {
   inputVolume: number;
   /** Volume de quem está na mesa (0–1). */
   outputVolume: number;
+  /** Nível mínimo para o microfone transmitir (0 = sempre). Veja mediaPrefs. */
+  micSensitivity: number;
+  /** Dispositivos disponíveis, por tipo (sem os "padrão" do sistema). */
+  devices: Record<DeviceKind, MediaDevice[]>;
+  /** O navegador só revela os nomes dos dispositivos depois de permitir câmera/microfone. */
+  devicesLabeled: boolean;
+  /** Dispositivos escolhidos ("" = padrão do sistema). */
+  micDeviceId: string;
+  camDeviceId: string;
+  speakerDeviceId: string;
+  /** O navegador permite escolher a saída de áudio (setSinkId; o Safari não permite). */
+  canPickSpeaker: boolean;
   error: string | null;
 }
 
@@ -34,14 +54,35 @@ export const INITIAL_CALL_STATE: CallState = {
   hasCam: false,
   inputVolume: 1,
   outputVolume: 1,
+  micSensitivity: 0,
+  devices: { audioinput: [], videoinput: [], audiooutput: [] },
+  devicesLabeled: false,
+  micDeviceId: "",
+  camDeviceId: "",
+  speakerDeviceId: "",
+  canPickSpeaker: false,
   error: null,
 };
 
-/** Cadeia de áudio do microfone: permite ajustar o ganho e medir o nível. */
+const DEVICE_FALLBACK_NAME: Record<DeviceKind, string> = {
+  audioinput: "Microfone",
+  videoinput: "Câmera",
+  audiooutput: "Saída de áudio",
+};
+
+/**
+ * Cadeia de áudio do microfone: fonte → ganho → (medidor) → noise gate → destino.
+ * A trilha enviada às outras pessoas sai do destino, então trocar de microfone
+ * só troca a fonte, sem renegociar as conexões.
+ */
 interface MicChain {
   context: AudioContext;
+  source: MediaStreamAudioSourceNode;
   gain: GainNode;
   analyser: AnalyserNode;
+  /** Noise gate (sensibilidade). null até carregar ou se o navegador não suportar. */
+  gate: AudioWorkletNode | null;
+  destination: MediaStreamAudioDestinationNode;
   samples: Uint8Array<ArrayBuffer>;
   /** Trilhas originais do getUserMedia (paradas ao liberar). */
   rawTracks: MediaStreamTrack[];
@@ -111,8 +152,14 @@ export class TableCall extends Emitter<CallEvents> {
     private readonly sendSignal: (to: string, data: SignalData) => void,
   ) {
     super();
-    const prefs = typeof window === "undefined" ? null : loadMediaPrefs();
-    if (prefs) this.state = { ...this.state, ...prefs };
+    if (typeof window === "undefined") return;
+    this.state = {
+      ...this.state,
+      ...loadMediaPrefs(),
+      canPickSpeaker: typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype,
+    };
+    navigator.mediaDevices?.addEventListener?.("devicechange", this.onDeviceChange);
+    void this.refreshDevices();
   }
 
   getState() {
@@ -186,20 +233,154 @@ export class TableCall extends Emitter<CallEvents> {
     this.savePrefs();
   }
 
-  /** Nível atual do microfone (0–1), já com o ganho aplicado. 0 sem microfone. */
+  /** Sensibilidade do microfone: abaixo deste nível (0–1) não transmite. 0 desliga. */
+  setMicSensitivity(value: number) {
+    const micSensitivity = Math.min(1, Math.max(0, value));
+    const gate = this.micChain?.gate;
+    if (gate) gate.parameters.get("threshold")!.setValueAtTime(micSensitivity, this.micChain!.context.currentTime);
+    this.update({ micSensitivity });
+    this.savePrefs();
+  }
+
+  /** Escolhe microfone, câmera ou saída de áudio ("" = padrão do sistema). Vale na hora, mesmo em chamada. */
+  setDevice(kind: DeviceKind, id: string) {
+    const key = kind === "audioinput" ? "micDeviceId" : kind === "videoinput" ? "camDeviceId" : "speakerDeviceId";
+    if (this.state[key] === id) return;
+    this.update({ [key]: id, error: null });
+    this.savePrefs();
+    if (kind === "audioinput") void this.switchDevice("audio");
+    else if (kind === "videoinput") void this.switchDevice("video");
+    // A saída é aplicada por cada vídeo (VideoTile) a partir de `speakerDeviceId`.
+  }
+
+  /**
+   * Pede permissão de câmera/microfone só para o navegador revelar os nomes dos
+   * dispositivos (antes de sentar numa mesa). As trilhas são paradas na hora.
+   */
+  async requestDeviceAccess() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this.update({ error: "Câmera e microfone exigem HTTPS ou localhost." });
+      return;
+    }
+    let stream: MediaStream | null = null;
+    for (const constraints of [{ audio: true, video: true }, { audio: true }, { video: true }]) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        break;
+      } catch {
+        // tenta a próxima combinação
+      }
+    }
+    stream?.getTracks().forEach((t) => t.stop());
+    if (!stream) this.update({ error: "Sem acesso à câmera/microfone. Libere nas permissões do navegador." });
+    await this.refreshDevices();
+  }
+
+  /** Nível atual do microfone (0–1), já com o ganho aplicado e antes do noise gate. 0 sem microfone. */
   getInputLevel(): number {
     const mic = this.micChain;
     if (!mic || !this.state.mic) return 0;
     mic.analyser.getByteTimeDomainData(mic.samples);
     let sum = 0;
     for (const v of mic.samples) sum += ((v - 128) / 128) ** 2;
-    return Math.min(1, Math.sqrt(sum / mic.samples.length) * 4);
+    return Math.min(1, Math.sqrt(sum / mic.samples.length) * LEVEL_SCALE);
   }
 
   dispose() {
+    navigator.mediaDevices?.removeEventListener?.("devicechange", this.onDeviceChange);
     for (const id of [...this.peers.keys()]) this.closePeer(id);
     this.releaseMedia();
     this.clear();
+  }
+
+  // --- dispositivos ------------------------------------------------------
+
+  private readonly onDeviceChange = () => void this.refreshDevices();
+
+  /** Atualiza a lista. Se o dispositivo escolhido sumiu (ex.: fone desconectado), volta ao padrão. */
+  private async refreshDevices() {
+    let infos: MediaDeviceInfo[];
+    try {
+      infos = (await navigator.mediaDevices?.enumerateDevices?.()) ?? [];
+    } catch {
+      return;
+    }
+    const devices: CallState["devices"] = { audioinput: [], videoinput: [], audiooutput: [] };
+    for (const info of infos) {
+      const kind = info.kind as DeviceKind;
+      // Sem permissão o id vem vazio; "default"/"communications" (Chrome) repetem um dispositivo real.
+      if (!devices[kind] || !info.deviceId || info.deviceId === "default" || info.deviceId === "communications") continue;
+      const list = devices[kind];
+      list.push({ id: info.deviceId, label: info.label || `${DEVICE_FALLBACK_NAME[kind]} ${list.length + 1}` });
+    }
+    const devicesLabeled = infos.some((i) => i.label);
+    this.update({ devices, devicesLabeled });
+    if (!devicesLabeled) return;
+
+    const gone = (id: string, kind: DeviceKind) => id !== "" && !devices[kind].some((d) => d.id === id);
+    if (gone(this.state.micDeviceId, "audioinput")) this.setDevice("audioinput", "");
+    if (gone(this.state.camDeviceId, "videoinput")) this.setDevice("videoinput", "");
+    if (this.state.canPickSpeaker && gone(this.state.speakerDeviceId, "audiooutput")) this.setDevice("audiooutput", "");
+  }
+
+  /** Restrições do getUserMedia com o dispositivo escolhido. */
+  private constraintsFor(kind: "audio" | "video", exact: boolean): MediaTrackConstraints {
+    const base = kind === "audio" ? AUDIO_CONSTRAINTS : VIDEO_CONSTRAINTS;
+    const id = kind === "audio" ? this.state.micDeviceId : this.state.camDeviceId;
+    // Ao entrar usa `ideal` (se o dispositivo sumiu, cai no padrão); ao trocar, `exact`.
+    return id ? { ...base, deviceId: exact ? { exact: id } : { ideal: id } } : base;
+  }
+
+  /** Troca o microfone ou a câmera da chamada em andamento. Sem mídia ativa, vale na próxima vez. */
+  private async switchDevice(kind: "audio" | "video") {
+    const stream = await this.mediaPromise;
+    if (!stream || stream !== this.state.localStream) return;
+    const token = this.mediaToken;
+    const old = kind === "audio" ? stream.getAudioTracks() : stream.getVideoTracks();
+    // Sem trilha desse tipo (ex.: entrou sem câmera) não há como trocar sem renegociar.
+    if (old.length === 0) return;
+
+    let track: MediaStreamTrack | undefined;
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({ [kind]: this.constraintsFor(kind, true) });
+      track = kind === "audio" ? fresh.getAudioTracks()[0] : fresh.getVideoTracks()[0];
+    } catch {
+      this.update({ error: kind === "audio" ? "Não foi possível usar esse microfone." : "Não foi possível usar essa câmera." });
+      return;
+    }
+    if (!track) return;
+    // Liberou a mídia ou trocou de novo enquanto o navegador abria o dispositivo.
+    if (this.mediaToken !== token || this.state.localStream !== stream) {
+      track.stop();
+      return;
+    }
+
+    const chain = this.micChain;
+    if (kind === "audio" && chain) {
+      // Só troca a fonte: a trilha enviada (saída do destino) continua a mesma.
+      track.contentHint = "speech";
+      chain.source.disconnect();
+      chain.source = chain.context.createMediaStreamSource(new MediaStream([track]));
+      chain.source.connect(chain.gain);
+      chain.rawTracks.filter((t) => t.kind === "audio").forEach((t) => t.stop());
+      chain.rawTracks = [...chain.rawTracks.filter((t) => t.kind !== "audio"), track];
+      void this.refreshDevices();
+      return;
+    }
+
+    track.contentHint = kind === "audio" ? "speech" : "motion";
+    track.enabled = kind === "audio" ? this.state.mic : this.state.cam;
+    for (const peer of this.peers.values()) {
+      const sender = peer.pc.getSenders().find((s) => s.track && old.includes(s.track));
+      await sender?.replaceTrack(track).catch((err) => console.warn("[TableCall] replaceTrack", err));
+    }
+    old.forEach((t) => t.stop());
+    if (chain) chain.rawTracks = [...chain.rawTracks.filter((t) => !old.includes(t)), track];
+    const next = new MediaStream([...stream.getTracks().filter((t) => !old.includes(t)), track]);
+    // Quem entrar na mesa depois recebe o stream novo.
+    this.mediaPromise = Promise.resolve(next);
+    this.update({ localStream: next });
+    void this.refreshDevices();
   }
 
   // --- mídia local -----------------------------------------------------
@@ -222,11 +403,9 @@ export class TableCall extends Emitter<CallEvents> {
       return null;
     }
 
-    const attempts: MediaStreamConstraints[] = [
-      { audio: AUDIO_CONSTRAINTS, video: VIDEO_CONSTRAINTS },
-      { audio: AUDIO_CONSTRAINTS },
-      { video: VIDEO_CONSTRAINTS },
-    ];
+    const audio = this.constraintsFor("audio", false);
+    const video = this.constraintsFor("video", false);
+    const attempts: MediaStreamConstraints[] = [{ audio, video }, { audio }, { video }];
     let stream: MediaStream | null = null;
     for (const constraints of attempts) {
       try {
@@ -262,6 +441,8 @@ export class TableCall extends Emitter<CallEvents> {
       error: stream ? null : "Sem acesso à câmera/microfone. Você ainda pode ouvir, ver e usar o chat.",
     });
     this.emitMedia();
+    // Com a permissão dada, o navegador revela os nomes dos dispositivos.
+    void this.refreshDevices();
     return stream;
   }
 
@@ -286,13 +467,28 @@ export class TableCall extends Emitter<CallEvents> {
       gain.connect(destination);
       void context.resume().catch(() => {});
 
-      this.micChain = {
+      const chain: MicChain = {
         context,
+        source,
         gain,
         analyser,
+        gate: null,
+        destination,
         samples: new Uint8Array(analyser.fftSize),
         rawTracks: stream.getTracks(),
       };
+      this.micChain = chain;
+      // O noise gate carrega em paralelo; até lá (ou sem suporte) o áudio passa direto.
+      createNoiseGate(context, this.state.micSensitivity).then(
+        (gate) => {
+          if (this.micChain !== chain) return;
+          gain.disconnect(destination);
+          gain.connect(gate);
+          gate.connect(destination);
+          chain.gate = gate;
+        },
+        (err) => console.warn("[TableCall] sem noise gate (sensibilidade):", err),
+      );
       return new MediaStream([...destination.stream.getAudioTracks(), ...stream.getVideoTracks()]);
     } catch {
       return stream;
@@ -332,8 +528,8 @@ export class TableCall extends Emitter<CallEvents> {
   }
 
   private savePrefs() {
-    const { mic, cam, inputVolume, outputVolume } = this.state;
-    saveMediaPrefs({ mic, cam, inputVolume, outputVolume });
+    const { mic, cam, inputVolume, outputVolume, micSensitivity, micDeviceId, camDeviceId, speakerDeviceId } = this.state;
+    saveMediaPrefs({ mic, cam, inputVolume, outputVolume, micSensitivity, micDeviceId, camDeviceId, speakerDeviceId });
   }
 
   // --- conexões ----------------------------------------------------------

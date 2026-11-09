@@ -1,8 +1,8 @@
 /**
  * Arte dos personagens em pixel art estilo Pokémon de GameBoy/GBA (16 × 16
  * pixels virtuais por frame, ampliados para TILE_SIZE), montada em camadas a
- * partir da aparência escolhida (sexo, cabelo, pele, olhos, roupa, sapato).
- * Puro, sem Phaser.
+ * partir da aparência escolhida (sexo, cabelo, pele, olhos, roupa, sapato) e,
+ * opcionalmente, de uma fantasia da loja (costumeArt.ts). Puro, sem Phaser.
  *
  * Layout do sheet: linhas = direções (down, left, right, up);
  * colunas = 0 idle · 1 idle (respiração) · 2 idle (piscada) · 3–6 caminhada · 7 sentado
@@ -15,8 +15,10 @@ import {
   SKIN_TONES,
   type Appearance,
 } from "../../shared/appearance.ts";
+import type { CostumeId } from "../../shared/costumes.ts";
 import { TILE_SIZE } from "../constants.ts";
 import { createImage, darken, lighten, mix, PixelCanvas, type Palette, type RgbaImage } from "../graphics/pixelArt.ts";
+import { COSTUME_ART, type CostumeArt, type DrawCtx } from "./costumeArt.ts";
 
 export const DIRECTIONS = ["down", "left", "right", "up"] as const;
 export type Direction = (typeof DIRECTIONS)[number];
@@ -62,7 +64,7 @@ const OUTFIT = { tshirt: 0, hoodie: 1, dressShirt: 2, suit: 3, dress: 4 } as con
 const SHOE = { sneaker: 0, formal: 1, boot: 2, sandal: 3 } as const;
 const EYES = { classic: 0, big: 1, happy: 2, serious: 3 } as const;
 
-interface Colors extends Palette {
+export interface Colors extends Palette {
   H: number; L: number; h: number; K: number;
   S: number; s: number; R: number;
   C: number; l: number; c: number;
@@ -90,9 +92,22 @@ function colorsFor(a: Appearance): Colors {
   };
 }
 
+/** Aplica as cores da fantasia (pele, roupa, calça, sapato, cabelo) e a paleta extra dela. */
+function withCostume(col: Colors, art: CostumeArt | null): Colors {
+  if (!art) return col;
+  const out: Colors = { ...col, ...art.palette };
+  const { skin, top, pants, shoe, hair } = art.colors ?? {};
+  if (skin !== undefined) Object.assign(out, { S: skin, s: darken(skin, 0.15), R: mix(skin, 0xff5a7a, 0.3), K: lighten(skin, 0.4) });
+  if (top !== undefined) Object.assign(out, { C: top, l: lighten(top, 0.3), c: darken(top, 0.22) });
+  if (pants !== undefined) Object.assign(out, { P: pants, p: darken(pants, 0.3) });
+  if (shoe !== undefined) Object.assign(out, { B: shoe, b: lighten(shoe, 0.4) });
+  if (hair !== undefined) Object.assign(out, { H: hair, L: lighten(hair, 0.35), h: darken(hair, 0.3) });
+  return out;
+}
+
 // --- cabeça ----------------------------------------------------------------
 
-type View = "front" | "back" | "side";
+export type View = "front" | "back" | "side";
 
 const HEAD_BASE = [
   "................",
@@ -255,7 +270,8 @@ const HAIR_STYLES: Record<View, string[]>[] = [
   },
 ];
 
-type Px = [number, number, keyof Colors];
+/** [x, y, chave da paleta] */
+export type Px = [number, number, string];
 
 /** Olhos na vista frontal: [aberto, piscando]. */
 const EYES_FRONT: Array<[Px[], Px[]]> = [
@@ -285,23 +301,28 @@ const EYES_SIDE: Array<[Px[], Px[]]> = [
   [[[10, 5, "h"], [11, 5, "h"], [10, 7, "E"], [11, 7, "E"]], [[10, 5, "h"], [11, 5, "h"], [10, 7, "E"], [11, 7, "E"]]],
 ];
 
-function drawPixels(cv: PixelCanvas, pixels: readonly Px[], col: Colors, dy: number) {
+function drawPixels(cv: PixelCanvas, pixels: readonly Px[], col: Palette, dy: number) {
   for (const [x, y, key] of pixels) cv.set(x, y + dy, col[key]);
 }
 
-function drawHead(cv: PixelCanvas, view: View, a: Appearance, col: Colors, pose: Pose, dy: number) {
+function drawHead(cv: PixelCanvas, a: Appearance, col: Colors, art: CostumeArt | null, ctx: DrawCtx) {
+  const { view, pose, dy } = ctx;
   const female = a.body === "female";
-  cv.ascii(0, dy, HEAD_BASE, col);
+  cv.ascii(0, dy, art?.head?.[view] ?? HEAD_BASE, col);
   if (view === "side") cv.set(7, 6 + dy, col.s); // orelha
-  if (view === "front" && female) cv.set(4, 7 + dy, col.R).set(11, 7 + dy, col.R); // bochechas
+  // Bochechas e cílios ficariam estranhos sobre máscaras: fantasias não usam.
+  if (view === "front" && female && !art) cv.set(4, 7 + dy, col.R).set(11, 7 + dy, col.R);
 
-  cv.ascii(0, dy, HAIR_STYLES[a.hairStyle][view], col);
+  cv.ascii(0, dy, art?.hair?.[view] ?? HAIR_STYLES[a.hairStyle][view], col);
 
+  if (view !== "back") {
+    const [open, closed] = art?.eyes?.[view] ?? (view === "front" ? EYES_FRONT : EYES_SIDE)[a.eyes];
+    drawPixels(cv, pose.eyesClosed ? closed : open, col, dy);
+  }
+  art?.headOver?.(cv, ctx);
   if (view === "back") return;
-  const [open, closed] = (view === "front" ? EYES_FRONT : EYES_SIDE)[a.eyes];
-  drawPixels(cv, pose.eyesClosed ? closed : open, col, dy);
   // Cílios (feminino), no canto externo do olho aberto
-  if (female && !pose.eyesClosed && a.eyes !== EYES.happy) {
+  if (female && !art && !pose.eyesClosed && a.eyes !== EYES.happy) {
     const y = (a.eyes === EYES.serious ? 7 : 6) + dy;
     if (view === "front") {
       cv.set(4, y, col.E).set(11, y, col.E);
@@ -327,7 +348,7 @@ function shoePixels(a: Appearance, col: Colors, width: 2 | 3): number[] {
   }
 }
 
-function drawFrontBack(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose, back: boolean) {
+function drawFrontBack(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose, back: boolean, art: CostumeArt | null) {
   const female = a.body === "female";
   const dress = a.outfit === OUTFIT.dress;
   const y0 = pose.sitting ? 1 : 0;
@@ -335,10 +356,14 @@ function drawFrontBack(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose, 
   const l = 12 + y0; // quadril: linha l; pernas l+1; pés l+2
   const x0 = female ? 5 : 4;
   const x1 = female ? 10 : 11;
+  // Cochilando: a cabeça pende um pixel na fase 1.
+  const nod = pose.activity === "sleep" && pose.phase === 1 ? 1 : 0;
+  const ctx: DrawCtx = { view: back ? "back" : "front", t, l, x0, x1, dy: y0 + nod, pose, col };
+  art?.behind?.(cv, ctx);
 
   // pernas e pés
-  const legColor = dress ? col.S : col.P;
-  const legShade = dress ? col.s : col.p;
+  const legColor = art?.legs ?? (dress ? col.S : col.P);
+  const legShade = art?.legs !== undefined ? darken(art.legs, 0.2) : dress ? col.s : col.p;
   const hip = dress ? col.C : col.P;
   if (pose.sitting) {
     if (back) {
@@ -406,22 +431,31 @@ function drawFrontBack(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose, 
     cv.rect(6, t - 1, 4, 1, col.c); // capuz nas costas
     cv.rect(x0 + 1, t, x1 - x0 - 1, 1, col.c);
   }
+  art?.torso?.(cv, ctx);
 
   // braços (balançam em oposição)
+  const { sleeve, sleeveColor, hand } = armColors(a, col, art);
   const arm = (x: number, lift: number) => {
     const y = t + lift;
-    const sleeve = a.outfit === OUTFIT.tshirt ? 1 : a.outfit === OUTFIT.dress ? 0 : 2;
     for (let i = 0; i < 3; i++) {
-      cv.set(x, y + i, i < sleeve && i < 2 ? col.c : col.S);
+      cv.set(x, y + i, i < sleeve && i < 2 ? sleeveColor : hand);
     }
   };
   arm(x0 - 1, pose.swing === 1 ? -1 : 0);
   arm(x1 + 1, pose.swing === -1 ? -1 : 0);
 
-  // Cochilando: a cabeça pende um pixel na fase 1.
-  const nod = pose.activity === "sleep" && pose.phase === 1 ? 1 : 0;
-  drawHead(cv, back ? "back" : "front", a, col, pose, y0 + nod);
-  if (!back) drawActivityProps(cv, pose, col, x1 + 1, t);
+  drawHead(cv, a, col, art, ctx);
+  if (!back) drawActivityProps(cv, pose, sleeveColor, hand, x1 + 1, t);
+  art?.over?.(cv, ctx);
+}
+
+/** Manga (quantos pixels do braço cobre), cor da manga e da mão. */
+function armColors(a: Appearance, col: Colors, art: CostumeArt | null) {
+  return {
+    sleeve: art?.sleeve ?? (a.outfit === OUTFIT.tshirt ? 1 : a.outfit === OUTFIT.dress ? 0 : 2),
+    sleeveColor: art?.sleeveColor ?? col.c,
+    hand: art?.hands ?? col.S,
+  };
 }
 
 const BREAD = 0xe0a85a;
@@ -430,10 +464,8 @@ const LETTUCE = 0x58b84a;
 const MEAT = 0x8a3a28;
 
 /** Braço erguido, comida e cigarro por cima do personagem de frente (xr = coluna do braço direito). */
-function drawActivityProps(cv: PixelCanvas, pose: Pose, col: Colors, xr: number, t: number) {
+function drawActivityProps(cv: PixelCanvas, pose: Pose, sleeve: number, hand: number, xr: number, t: number) {
   const bite = pose.phase === 1;
-  const sleeve = col.c;
-  const hand = col.S;
   const burger = (x: number, y: number) => {
     cv.rect(x, y, 4, 1, BREAD).rect(x, y + 1, 4, 1, LETTUCE).rect(x, y + 2, 4, 1, BREAD_DARK);
     cv.set(x, y + 1, MEAT).set(x + 1, y + 1, MEAT).clear(x, y).set(x + 3, y, BREAD_DARK);
@@ -465,14 +497,16 @@ function drawActivityProps(cv: PixelCanvas, pose: Pose, col: Colors, xr: number,
 }
 
 /** Vista lateral olhando para a direita (a esquerda é espelhada). */
-function drawSide(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose) {
+function drawSide(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose, art: CostumeArt | null) {
   const female = a.body === "female";
   const dress = a.outfit === OUTFIT.dress;
   const y0 = pose.sitting ? 1 : 0;
   const t = 9 + y0;
   const l = 12 + y0;
   const x0 = female ? 6 : 5;
-  const legColor = dress ? col.S : col.P;
+  const ctx: DrawCtx = { view: "side", t, l, x0, x1: 10, dy: y0, pose, col };
+  art?.behind?.(cv, ctx);
+  const legColor = art?.legs ?? (dress ? col.S : col.P);
   const shoes = shoePixels(a, col, 3);
   const boot = a.shoes === SHOE.boot;
 
@@ -500,28 +534,37 @@ function drawSide(cv: PixelCanvas, a: Appearance, col: Colors, pose: Pose) {
   if (a.outfit === OUTFIT.suit) cv.set(10, t, col.W).set(10, t + 1, col.T);
   if (a.outfit === OUTFIT.dressShirt) cv.set(10, t, lighten(col.C, 0.55));
   if (a.outfit === OUTFIT.dress) cv.set(10, t, col.S);
+  art?.torso?.(cv, ctx);
 
-  drawHead(cv, "side", a, col, pose, y0);
+  drawHead(cv, a, col, art, ctx);
   if (a.outfit === OUTFIT.hoodie) cv.set(4, t - 1, col.c).set(5, t - 1, col.c); // capuz
 
   // braço da frente
   const ax = 7 + (pose.sitting ? 1 : pose.swing);
-  const sleeve = a.outfit === OUTFIT.tshirt ? 1 : a.outfit === OUTFIT.dress ? 0 : 2;
+  const { sleeve, sleeveColor, hand } = armColors(a, col, art);
   for (let i = 0; i < 3; i++) {
-    const color = i < sleeve ? col.c : col.S;
-    cv.set(ax, t + i, color).set(ax + 1, t + i, i < sleeve ? col.c : i === 2 ? col.S : col.s);
+    const color = i < sleeve ? sleeveColor : hand;
+    cv.set(ax, t + i, color).set(ax + 1, t + i, i < sleeve ? sleeveColor : i === 2 ? hand : darken(hand, 0.15));
   }
+  art?.over?.(cv, ctx);
 }
 
 /** Desenha um frame (16 × 16 virtuais) já com contorno e sombra. */
-export function drawCharacterFrame(dir: Direction, pose: Pose, appearance: Appearance): PixelCanvas {
-  const col = colorsFor(appearance);
+export function drawCharacterFrame(
+  dir: Direction,
+  pose: Pose,
+  appearance: Appearance,
+  costume: CostumeId | null = null,
+): PixelCanvas {
+  const art = costume ? COSTUME_ART[costume] : null;
+  const a = art?.appearance ? { ...appearance, ...art.appearance } : appearance;
+  const col = withCostume(colorsFor(a), art);
   const cv = new PixelCanvas(N, N);
   // Atividades só existem de frente; nas outras direções vira a pose parada.
   if (pose.activity && dir !== "down") pose = { ...NEUTRAL, eyesClosed: pose.eyesClosed };
-  if (dir === "down") drawFrontBack(cv, appearance, col, pose, false);
-  else if (dir === "up") drawFrontBack(cv, appearance, col, pose, true);
-  else drawSide(cv, appearance, col, pose);
+  if (dir === "down") drawFrontBack(cv, a, col, pose, false, art);
+  else if (dir === "up") drawFrontBack(cv, a, col, pose, true, art);
+  else drawSide(cv, a, col, pose, art);
 
   let out = cv;
   if (dir === "left") {
@@ -538,21 +581,27 @@ export function drawCharacterFrame(dir: Direction, pose: Pose, appearance: Appea
   return out;
 }
 
-/** Sheet completo de um personagem (8 colunas × 4 direções). */
-export function renderCharacterSheet(appearance: Appearance): RgbaImage {
+/** Sheet completo de um personagem (8 colunas × 4 direções), com a fantasia se houver. */
+export function renderCharacterSheet(appearance: Appearance, costume: CostumeId | null = null): RgbaImage {
   const scale = TILE_SIZE / N;
   const image = createImage(TILE_SIZE * POSES.length, TILE_SIZE * DIRECTIONS.length);
   DIRECTIONS.forEach((dir, row) => {
     POSES.forEach((pose, col) => {
-      drawCharacterFrame(dir, pose, appearance).blit(image.data, image.width, col * TILE_SIZE, row * TILE_SIZE, scale);
+      drawCharacterFrame(dir, pose, appearance, costume).blit(image.data, image.width, col * TILE_SIZE, row * TILE_SIZE, scale);
     });
   });
   return image;
 }
 
 /** Um frame isolado em RGBA (ex.: prévia na tela de entrada e avatar). */
-export function renderCharacterFrame(appearance: Appearance, dir: Direction, column: number, scale = 1): RgbaImage {
+export function renderCharacterFrame(
+  appearance: Appearance,
+  dir: Direction,
+  column: number,
+  scale = 1,
+  costume: CostumeId | null = null,
+): RgbaImage {
   const image = createImage(N * scale, N * scale);
-  drawCharacterFrame(dir, POSES[column] ?? NEUTRAL, appearance).blit(image.data, image.width, 0, 0, scale);
+  drawCharacterFrame(dir, POSES[column] ?? NEUTRAL, appearance, costume).blit(image.data, image.width, 0, 0, scale);
   return image;
 }
