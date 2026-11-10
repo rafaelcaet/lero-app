@@ -178,7 +178,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
           fontSize: "8px",
           fontStyle: "bold",
           color: "#f8f8f8",
-          backgroundColor: "#283048d0",
+          backgroundColor: "#4b4e6de0",
           padding: { x: 3, y: 1 },
           resolution: 4,
         })

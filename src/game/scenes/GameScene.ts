@@ -87,7 +87,7 @@ export class GameScene extends Phaser.Scene {
     camera.setZoom(CAMERA_ZOOM);
     camera.setRoundPixels(true);
     camera.startFollow(this.player, true, 0.15, 0.15);
-    camera.setBackgroundColor("#1b1d27");
+    camera.setBackgroundColor("#2c2d41");
 
     this.unsubscribers = [
       session.events.on("message", (msg) => this.handleServerMessage(msg)),

@@ -59,7 +59,7 @@ export function VideoTile({ name, stream, mic, cam, status, self = false, volume
   const statusText = status && status !== "connected" ? STATUS_TEXT[status] : null;
 
   return (
-    <div className="relative aspect-video overflow-hidden rounded-md bg-neutral-800">
+    <div className="relative aspect-video overflow-hidden rounded-md bg-grape-800">
       {/* O vídeo continua montado mesmo com a câmera desligada para tocar o áudio. */}
       <video
         ref={videoRef}
@@ -70,7 +70,7 @@ export function VideoTile({ name, stream, mic, cam, status, self = false, volume
       />
       {!showVideo && (
         <div className="absolute inset-0 grid place-items-center">
-          <span className="grid h-14 w-14 place-items-center rounded-full bg-neutral-700 text-2xl font-semibold text-neutral-200">
+          <span className="grid h-14 w-14 place-items-center rounded-full bg-grape-700 text-2xl font-semibold text-grape-200">
             {name.slice(0, 1).toUpperCase()}
           </span>
         </div>

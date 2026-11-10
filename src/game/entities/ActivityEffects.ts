@@ -59,7 +59,7 @@ export class ActivityEffects {
         fontSize: big ? "11px" : "8px",
         fontStyle: "bold",
         color: "#dff0ff",
-        stroke: "#283048",
+        stroke: "#222222",
         strokeThickness: 2,
         resolution: 4,
       })

@@ -76,7 +76,7 @@ export function TouchControls({ seated }: { seated: boolean }) {
       {!seated && (
         <div
           role="presentation"
-          className="absolute bottom-5 left-5 z-10 flex h-32 w-32 touch-none select-none items-center justify-center rounded-full border-2 border-white/15 bg-neutral-900/45 backdrop-blur-[1px]"
+          className="absolute bottom-5 left-5 z-10 flex h-32 w-32 touch-none select-none items-center justify-center rounded-full border-2 border-white/15 bg-grape-900/45 backdrop-blur-[1px]"
           onPointerDown={(e) => {
             if (pointerId.current !== null) return;
             e.preventDefault();
@@ -117,7 +117,7 @@ export function TouchControls({ seated }: { seated: boolean }) {
             if (e.detail === 0) queueInteract();
           }}
           onContextMenu={(e) => e.preventDefault()}
-          className={`absolute z-10 flex touch-none select-none items-center justify-center rounded-full border-2 border-emerald-300/50 bg-emerald-600/85 font-display text-sm font-semibold text-white shadow-xl active:scale-95 active:bg-emerald-500 ${
+          className={`absolute z-10 flex touch-none select-none items-center justify-center rounded-full border-2 border-aqua-300/50 bg-aqua-400/90 font-display text-sm font-semibold text-grape-950 shadow-xl active:scale-95 active:bg-aqua-300 ${
             seated ? "left-3 top-14 h-11 px-5" : "bottom-8 right-5 h-20 w-20"
           }`}
         >

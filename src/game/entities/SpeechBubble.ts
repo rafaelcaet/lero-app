@@ -47,7 +47,7 @@ export class SpeechBubble extends Phaser.GameObjects.Container {
           fontFamily: "monospace",
           fontSize: "8px",
           fontStyle: "bold",
-          color: "#283048",
+          color: "#222222",
           resolution: 4,
         })
         .setOrigin(0.5);

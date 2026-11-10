@@ -16,15 +16,15 @@ export function MediaSettings({ session, call }: MediaSettingsProps) {
   const [open, setOpen] = useState(true);
 
   return (
-    <section aria-label="Áudio e vídeo" className="border-t border-neutral-800">
+    <section aria-label="Áudio e vídeo" className="border-t border-grape-800">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-neutral-800/50"
+        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-grape-800/50"
       >
         <span className="font-display text-base font-semibold">Áudio e vídeo</span>
-        <ChevronIcon direction={open ? "down" : "up"} size={16} className="text-neutral-500" />
+        <ChevronIcon direction={open ? "down" : "up"} size={16} className="text-grape-500" />
       </button>
 
       {open && (
@@ -70,7 +70,7 @@ export function MediaSettings({ session, call }: MediaSettingsProps) {
               active={!!call.localStream && call.hasMic && call.mic}
               threshold={call.micSensitivity}
             />
-            <p className="mt-1.5 text-[11px] leading-snug text-neutral-500">
+            <p className="mt-1.5 text-[11px] leading-snug text-grape-500">
               {call.micSensitivity === 0
                 ? "Arraste para cortar ruídos de fundo: abaixo da marca, o microfone não transmite."
                 : "Abaixo da marca, o microfone não transmite. Fale normalmente e ajuste até a barra passar da marca só com a sua voz."}
@@ -101,7 +101,7 @@ function MediaToggle(props: { label: string; on: boolean; icon: React.ReactNode;
       onMouseDown={(e) => e.preventDefault()}
       onClick={props.onClick}
       className={`flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs font-medium transition-colors ${
-        props.on ? "bg-neutral-800 text-neutral-100 hover:bg-neutral-700" : "bg-red-600/20 text-red-300 hover:bg-red-600/30"
+        props.on ? "bg-grape-800 text-grape-100 hover:bg-grape-700" : "bg-red-600/20 text-red-300 hover:bg-red-600/30"
       }`}
     >
       {props.icon}
@@ -126,12 +126,12 @@ function VolumeSlider(props: {
   const percent = Math.round(props.value * 100);
   return (
     <div className={props.disabled ? "opacity-50" : ""}>
-      <label htmlFor={props.id} className="mb-1.5 flex items-center justify-between text-xs text-neutral-400">
+      <label htmlFor={props.id} className="mb-1.5 flex items-center justify-between text-xs text-grape-400">
         <span className="flex items-center gap-1.5">
           {props.icon}
           {props.label}
         </span>
-        <span className="tabular-nums text-neutral-300">{props.valueText ?? `${percent}%`}</span>
+        <span className="tabular-nums text-grape-300">{props.valueText ?? `${percent}%`}</span>
       </label>
       <input
         id={props.id}
@@ -144,7 +144,7 @@ function VolumeSlider(props: {
         onChange={(e) => props.onChange(Number(e.target.value))}
         // Solta o foco ao terminar de arrastar: as setas voltam a mover o personagem.
         onPointerUp={(e) => e.currentTarget.blur()}
-        className="w-full accent-emerald-500"
+        className="w-full accent-aqua-500"
       />
       {props.children}
     </div>
@@ -177,11 +177,11 @@ function InputLevel({ session, active, threshold }: { session: Session; active: 
   }, [session, active, threshold]);
 
   return (
-    <div className="relative mt-2 h-1.5 rounded-full bg-neutral-800" aria-hidden title="Nível do microfone">
+    <div className="relative mt-2 h-1.5 rounded-full bg-grape-800" aria-hidden title="Nível do microfone">
       <div
         ref={barRef}
         data-open="true"
-        className="h-full w-0 rounded-full bg-neutral-500 transition-[width] duration-75 data-[open=true]:bg-emerald-500"
+        className="h-full w-0 rounded-full bg-grape-500 transition-[width] duration-75 data-[open=true]:bg-aqua-500"
       />
       {threshold > 0 && (
         <div
@@ -205,17 +205,17 @@ function DevicePicker({ session, call }: MediaSettingsProps) {
   const fields = DEVICE_FIELDS.filter((f) => f.kind !== "audiooutput" || call.canPickSpeaker);
 
   return (
-    <div className="space-y-3 border-t border-neutral-800 pt-4">
-      <h3 className="font-display text-sm font-semibold text-neutral-200">Dispositivos</h3>
+    <div className="space-y-3 border-t border-grape-800 pt-4">
+      <h3 className="font-display text-sm font-semibold text-grape-200">Dispositivos</h3>
       {!call.devicesLabeled ? (
         <div className="space-y-2">
-          <p className="text-[11px] leading-snug text-neutral-500">
+          <p className="text-[11px] leading-snug text-grape-500">
             O navegador só mostra a lista depois que você permite o acesso à câmera e ao microfone.
           </p>
           <button
             type="button"
             onClick={() => session.requestDeviceAccess()}
-            className="w-full rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 font-display text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"
+            className="w-full rounded-md border border-aqua-500/40 bg-aqua-500/10 px-3 py-2 font-display text-xs font-semibold text-aqua-300 hover:bg-aqua-500/20"
           >
             Permitir acesso
           </button>
@@ -247,7 +247,7 @@ function DeviceSelect(props: {
 }) {
   return (
     <div>
-      <label htmlFor={props.id} className="mb-1.5 flex items-center gap-1.5 text-xs text-neutral-400">
+      <label htmlFor={props.id} className="mb-1.5 flex items-center gap-1.5 text-xs text-grape-400">
         {props.icon}
         {props.label}
       </label>
@@ -259,7 +259,7 @@ function DeviceSelect(props: {
           // Devolve o teclado ao jogo (as setas não ficam trocando de opção).
           e.currentTarget.blur();
         }}
-        className="w-full truncate rounded-md border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100 outline-none focus:border-emerald-500"
+        className="w-full truncate rounded-md border border-grape-700 bg-grape-950 px-2 py-1.5 text-xs text-grape-100 outline-none focus:border-aqua-500"
       >
         <option value="">Padrão do sistema</option>
         {props.devices.map((d) => (

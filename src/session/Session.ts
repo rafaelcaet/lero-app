@@ -129,12 +129,13 @@ export class Session {
   private iceServers: RTCIceServer[] = [];
   private joined = false;
 
-  private readonly walletKey: string | undefined;
+  /** Ingresso do login (veja src/lib/auth/token.ts). */
+  private readonly ticket: string;
 
-  constructor(name: string, appearance: Appearance, url: string, walletKey?: string) {
+  constructor(name: string, appearance: Appearance, url: string, ticket: string) {
     this.name = name;
     this.appearance = appearance;
-    this.walletKey = walletKey;
+    this.ticket = ticket;
     this.net = new NetworkClient(url);
   }
 
@@ -322,9 +323,8 @@ export class Session {
     this.joined = true;
     this.net.send({
       type: "join",
-      name: this.name,
       appearance: this.appearance,
-      walletKey: this.walletKey,
+      ticket: this.ticket,
       ...this.lastPosition,
     });
   }

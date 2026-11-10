@@ -36,7 +36,7 @@ export class SeatInteraction {
         fontFamily: "monospace",
         fontSize: "8px",
         color: "#ffffff",
-        backgroundColor: "#1b1d27dd",
+        backgroundColor: "#2c2d41dd",
         padding: { x: 3, y: 2 },
         resolution: 4,
       })
@@ -152,7 +152,7 @@ export class SeatInteraction {
         fontFamily: "monospace",
         fontSize: "8px",
         color: "#ff9b9b",
-        backgroundColor: "#1b1d27dd",
+        backgroundColor: "#2c2d41dd",
         padding: { x: 3, y: 2 },
         resolution: 4,
       })

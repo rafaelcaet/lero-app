@@ -33,13 +33,13 @@ export function DmComposeModal({ player, onSend, onClose }: DmComposeModalProps)
           e.preventDefault();
           submit();
         }}
-        className="relative w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-5 text-neutral-200 shadow-2xl"
+        className="relative w-full max-w-sm rounded-2xl border border-grape-800 bg-grape-900 p-5 text-grape-200 shadow-2xl"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Fechar"
-          className="absolute right-3 top-3 rounded-full p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+          className="absolute right-3 top-3 rounded-full p-1 text-grape-500 hover:bg-grape-800 hover:text-grape-200"
         >
           <CloseIcon size={18} />
         </button>
@@ -47,10 +47,10 @@ export function DmComposeModal({ player, onSend, onClose }: DmComposeModalProps)
         <div className="flex items-center gap-3 pr-6">
           <PlayerAvatar name={player.name} appearance={player.appearance} costume={player.costume} />
           <div className="min-w-0">
-            <h2 id="dm-compose-title" className="truncate font-display text-lg font-semibold text-neutral-50">
+            <h2 id="dm-compose-title" className="truncate font-display text-lg font-semibold text-grape-50">
               Mensagem para {player.name}
             </h2>
-            <p className="text-xs text-neutral-500">Só vocês dois veem esta conversa.</p>
+            <p className="text-xs text-grape-500">Só vocês dois veem esta conversa.</p>
           </div>
         </div>
 
@@ -69,15 +69,15 @@ export function DmComposeModal({ player, onSend, onClose }: DmComposeModalProps)
           rows={4}
           placeholder="Escreva sua mensagem…"
           aria-label={`Mensagem para ${player.name}`}
-          className="mt-4 w-full resize-none rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-emerald-500"
+          className="mt-4 w-full resize-none rounded-lg border border-grape-700 bg-grape-950 px-3 py-2 text-sm text-grape-100 outline-none placeholder:text-grape-600 focus:border-aqua-500"
         />
 
         <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-[11px] text-neutral-500">Enter envia · Shift+Enter quebra linha</span>
+          <span className="text-[11px] text-grape-500">Enter envia · Shift+Enter quebra linha</span>
           <button
             type="submit"
             disabled={!text.trim()}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 font-display text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
+            className="flex items-center gap-2 rounded-lg bg-aqua-400 px-4 py-2 font-display text-sm font-semibold text-grape-950 hover:bg-aqua-300 disabled:opacity-40"
           >
             Enviar
             <SendIcon size={16} />

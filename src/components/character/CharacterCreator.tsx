@@ -37,13 +37,13 @@ export function CharacterCreator({
 
   return (
     <fieldset className="grid gap-5 md:grid-cols-[220px_1fr]">
-      <legend className="mb-3 font-display text-lg font-semibold text-neutral-100">Seu personagem</legend>
+      <legend className="mb-3 font-display text-lg font-semibold text-grape-100">Seu personagem</legend>
 
       <Preview appearance={value} onRandom={() => onChange(randomAppearance())} />
 
       <div className="flex min-w-0 flex-col gap-4">
         <Field label="Sexo">
-          <div role="radiogroup" aria-label="Sexo" className="grid grid-cols-2 gap-1 rounded-md bg-neutral-950 p-1">
+          <div role="radiogroup" aria-label="Sexo" className="grid grid-cols-2 gap-1 rounded-md bg-grape-950 p-1">
             {BODY_TYPES.map((b) => (
               <button
                 key={b.id}
@@ -52,7 +52,7 @@ export function CharacterCreator({
                 aria-checked={value.body === b.id}
                 onClick={() => set("body", b.id)}
                 className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                  value.body === b.id ? "bg-emerald-600 text-white" : "text-neutral-400 hover:text-neutral-100"
+                  value.body === b.id ? "bg-aqua-400 text-grape-950" : "text-grape-400 hover:text-grape-100"
                 }`}
               >
                 {b.label}
@@ -126,7 +126,7 @@ function Preview({ appearance, onRandom }: { appearance: Appearance; onRandom: (
         <button
           type="button"
           onClick={onRandom}
-          className="flex-1 rounded border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-200 hover:border-emerald-500 hover:text-white"
+          className="flex-1 rounded border border-grape-700 px-3 py-1.5 text-sm font-medium text-grape-200 hover:border-aqua-500 hover:text-white"
         >
           🎲 Aleatório
         </button>
@@ -148,7 +148,7 @@ const DIRECTION_LABEL: Record<Direction, string> = {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-grape-400">{label}</span>
       {children}
     </div>
   );
@@ -161,7 +161,7 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-neutral-700 text-lg text-neutral-200 hover:border-emerald-500 hover:text-white"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-grape-700 text-lg text-grape-200 hover:border-aqua-500 hover:text-white"
     >
       {children}
     </button>
@@ -186,9 +186,9 @@ function Stepper({
       <IconButton label={`${label}: anterior`} onClick={() => step(-1)}>
         ‹
       </IconButton>
-      <output aria-live="polite" aria-label={label} className="flex-1 rounded bg-neutral-950 px-3 py-1.5 text-center text-sm text-neutral-100">
+      <output aria-live="polite" aria-label={label} className="flex-1 rounded bg-grape-950 px-3 py-1.5 text-center text-sm text-grape-100">
         {options[value]}
-        <span className="ml-2 text-xs text-neutral-500">
+        <span className="ml-2 text-xs text-grape-500">
           {value + 1}/{options.length}
         </span>
       </output>
@@ -222,7 +222,7 @@ function Swatches({
           title={c.label}
           onClick={() => onChange(i)}
           className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${
-            value === i ? "border-white ring-2 ring-emerald-500" : "border-black/40"
+            value === i ? "border-white ring-2 ring-aqua-500" : "border-black/40"
           }`}
           style={{ backgroundColor: cssColor(c.color) }}
         />

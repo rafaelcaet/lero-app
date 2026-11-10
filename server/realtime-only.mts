@@ -12,6 +12,7 @@
  *   ICE_SERVERS       JSON com servidores STUN/TURN (veja server/main.mts)
  *   MONGODB_URI       string de conexão do MongoDB (sem ela, os dados ficam só em memória)
  *   MONGODB_DB        nome do banco (padrão "lero")
+ *   AUTH_SECRET       segredo do login (obrigatório em produção; o mesmo do site)
  *
  * As variáveis também podem ficar num arquivo .env.local (carregado pelos scripts do package.json).
  */

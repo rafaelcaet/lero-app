@@ -13,6 +13,7 @@ primary_region = 'gru'
   ALLOWED_ORIGINS = 'https://lero-app-nu.vercel.app'
   MONGODB_DB = 'lero'
   # MONGODB_URI é segredo: fly secrets set MONGODB_URI='mongodb+srv://...'
+  # AUTH_SECRET também (o mesmo valor da Vercel): fly secrets set AUTH_SECRET='...'
 
 [http_service]
   internal_port = 8080

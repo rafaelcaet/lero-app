@@ -29,6 +29,7 @@ Sem `MONGODB_URI` o jogo funciona, mas os dados ficam só em memória.
 
 | Collection | O que guarda |
 |---|---|
+| `users` | Contas de login: e-mail, nome, hash da senha (scrypt) e a chave do jogador |
 | `players` | Perfil de cada jogador: nome, aparência, última posição, tempo total online |
 | `wallets` | Lerocoins, aluguéis ativos e veículo em uso |
 | `purchases` | Histórico de compras na loja (aluguel novo ou renovação, preço, saldo depois) |
@@ -36,8 +37,24 @@ Sem `MONGODB_URI` o jogo funciona, mas os dados ficam só em memória.
 | `direct_messages` | Mensagens diretas (DMs) entre jogadores |
 | `sessions` | Cada entrada no escritório: quando conectou, quando saiu, duração |
 
-Todas usam como identificador do jogador a chave gerada no navegador (`lero:wallet-key`
-no localStorage). Ela nunca é enviada a outros jogadores.
+Todas usam como identificador do jogador a chave da conta (`users.playerKey`). Ela fica
+só no servidor e no banco, nunca vai para o navegador nem para outros jogadores.
+
+## Login
+
+Para entrar no escritório é preciso ter conta (`/cadastro`) e fazer login (`/login`).
+
+- O site guarda a sessão num cookie httpOnly assinado (30 dias).
+- Ao abrir o escritório, a página entrega ao navegador um **ingresso** assinado (1 dia)
+  que vai no `join` do WebSocket. O servidor do jogo confere a assinatura com o mesmo
+  `AUTH_SECRET` e usa o nome e a carteira da conta. Ingresso inválido/vencido fecha a
+  conexão (código 4001) e a tela pede para entrar de novo.
+- Quem já jogava antes do login: ao criar a conta no mesmo navegador, a conta herda a
+  carteira antiga (`lero:wallet-key`), com as Lerocoins e compras.
+
+Em produção, defina **`AUTH_SECRET`** (32+ caracteres, ex.: `openssl rand -base64 32`)
+**com o mesmo valor** no site e no servidor do jogo. Sem ela, os dois se recusam a subir/
+assinar. Em desenvolvimento há um segredo padrão.
 
 ## Deixar outras pessoas entrarem
 
@@ -86,12 +103,15 @@ A Vercel não mantém WebSocket, então o servidor do jogo roda em outro serviç
 | Variável `ALLOWED_ORIGINS` | `https://SEU-APP.vercel.app` |
 | Variável `ICE_SERVERS` | (opcional) servidores TURN |
 | Variável `MONGODB_URI` | string de conexão do MongoDB (veja "Banco de dados") |
+| Variável `AUTH_SECRET` | segredo do login (o mesmo da Vercel) |
 
 **Vercel** → *Settings → Environment Variables*:
 
 | Nome | Valor |
 |---|---|
 | `NEXT_PUBLIC_WS_URL` | `wss://SEU-SERVIDOR.onrender.com/ws` |
+| `AUTH_SECRET` | segredo do login (o mesmo do servidor do jogo) |
+| `MONGODB_URI` / `MONGODB_DB` | o mesmo banco do servidor do jogo (contas ficam em `users`) |
 
 Depois faça **Redeploy** na Vercel: variáveis `NEXT_PUBLIC_*` entram no build.
 As configurações de *Build and Deployment* podem ficar no padrão.
@@ -114,6 +134,7 @@ ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.exemplo
 | `HOST` | `0.0.0.0` | Interface de rede |
 | `ICE_SERVERS` | STUN do Google | Servidores STUN/TURN (JSON) enviados aos clientes |
 | `ALLOWED_ORIGINS` | qualquer | Origens aceitas no WebSocket, separadas por vírgula |
+| `AUTH_SECRET` | — (obrigatória em produção) | Assina sessão e ingresso do jogo; igual no site e no servidor do jogo |
 | `WALLETS_FILE` | `.data/wallets.json` | Onde o servidor salva as Lerocoins (vazio = só memória) |
 | `ALLOWED_DEV_ORIGINS` | — | Domínios externos liberados no `pnpm dev` |
 | `NEXT_PUBLIC_WS_URL` | mesma origem `/ws` | WebSocket em outro endereço, ex.: site na Vercel (build) |
@@ -126,8 +147,8 @@ ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.exemplo
   (60, 1,6× mais rápido), **carro** (150, 2× mais rápido) e **mascote** (100: Pikachu,
   Squirtle, Charmander ou Bulbasaur, sorteado, que segue o dono). Alugar de novo soma
   mais 1 hora (até 24 h). Veículos podem ser usados/guardados enquanto estiverem alugados.
-- A carteira é identificada por uma chave gerada e guardada no navegador
-  (`localStorage`, `lero:wallet-key`): trocar de navegador ou limpar os dados começa do zero.
+- A carteira pertence à conta: entrando com o mesmo login em qualquer navegador, as
+  Lerocoins vêm junto.
 - O servidor salva as carteiras em `WALLETS_FILE` a cada 30 s e ao desligar. No Fly.io o
   disco da máquina é apagado a cada deploy: para manter as moedas, monte um volume e aponte
   `WALLETS_FILE` para ele (ex.: `/data/wallets.json`).

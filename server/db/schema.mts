@@ -4,15 +4,30 @@
  * `ensureSchema()` é idempotente: cria o que falta e atualiza validadores e índices
  * do que já existe. Roda sempre que o servidor sobe (e em `pnpm db:setup`).
  *
- * A "chave do jogador" (`playerKey`) é a chave gerada e guardada no navegador
- * (veja src/session/walletKey.ts). Ela funciona como senha da carteira: fica
- * só no servidor e no banco, nunca é enviada a outros jogadores.
+ * A "chave do jogador" (`playerKey`) identifica carteira, perfil e histórico. Cada
+ * conta (`users`) tem a sua; contas criadas num navegador que já jogava antes do
+ * login herdam a chave antiga (`lero:wallet-key`), para não perder as Lerocoins.
+ * Ela fica só no servidor e no banco, nunca é enviada a outros jogadores.
  */
 import type { Collection, Db, Document, IndexDescription } from "mongodb";
 import type { Appearance } from "../../src/shared/appearance.ts";
 import { COSTUME_IDS, type CostumeId, type PetKind, type RideKind, type ShopItemId } from "../../src/shared/shop.ts";
 
 // --- documentos -----------------------------------------------------------
+
+/** `users`: contas de login (e-mail e senha). */
+export interface UserDoc {
+  _id: string;
+  /** Sempre em minúsculas. Único. */
+  email: string;
+  name: string;
+  /** "scrypt$N$r$p$salt$hash" (veja src/lib/auth/password.ts). */
+  passwordHash: string;
+  /** Chave do jogador desta conta. Única. */
+  playerKey: string;
+  createdAt: Date;
+  lastLoginAt: Date | null;
+}
 
 /** `players`: perfil de cada jogador (um por chave de navegador). */
 export interface PlayerDoc {
@@ -103,6 +118,7 @@ export interface SessionDoc {
 }
 
 export interface Collections {
+  users: Collection<UserDoc>;
   players: Collection<PlayerDoc>;
   wallets: Collection<WalletDoc>;
   purchases: Collection<PurchaseDoc>;
@@ -112,6 +128,7 @@ export interface Collections {
 }
 
 export const COLLECTION_NAMES = {
+  users: "users",
   players: "players",
   wallets: "wallets",
   purchases: "purchases",
@@ -122,6 +139,7 @@ export const COLLECTION_NAMES = {
 
 export function collections(db: Db): Collections {
   return {
+    users: db.collection<UserDoc>(COLLECTION_NAMES.users),
     players: db.collection<PlayerDoc>(COLLECTION_NAMES.players),
     wallets: db.collection<WalletDoc>(COLLECTION_NAMES.wallets),
     purchases: db.collection<PurchaseDoc>(COLLECTION_NAMES.purchases),
@@ -145,7 +163,29 @@ interface CollectionSpec {
   indexes: IndexDescription[];
 }
 
+/** Índices de `users` (exportados para o site garantir os únicos ao conectar). */
+export const USER_INDEXES: IndexDescription[] = [
+  { key: { email: 1 }, name: "email_unique", unique: true },
+  { key: { playerKey: 1 }, name: "playerKey_unique", unique: true },
+];
+
 const SPECS: Record<keyof Collections, CollectionSpec> = {
+  users: {
+    validator: {
+      bsonType: "object",
+      required: ["_id", "email", "name", "passwordHash", "playerKey", "createdAt"],
+      properties: {
+        _id: str,
+        email: { bsonType: "string", maxLength: 254 },
+        name: { bsonType: "string", maxLength: 64 },
+        passwordHash: str,
+        playerKey: str,
+        createdAt: date,
+        lastLoginAt: { bsonType: ["date", "null"] },
+      },
+    },
+    indexes: USER_INDEXES,
+  },
   players: {
     validator: {
       bsonType: "object",

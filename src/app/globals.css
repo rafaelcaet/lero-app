@@ -4,10 +4,49 @@
 @custom-variant tall (@media (min-height: 32rem));
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-nunito), ui-rounded, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  /* Fredoka (identidade): só textos principais — títulos e botões de ação. */
-  --font-display: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
+  /* Pixelify Sans (identidade pixel): só textos principais — títulos e botões de ação. */
+  --font-display: var(--font-pixelify), ui-monospace, monospace;
+}
+
+/*
+ * Paleta do Lero: Carbon Black #222222 · White #FFFFFF · Dusty Grape #4B4E6D ·
+ * Pearl Aqua #84DCC6 · Cool Steel #95A3B3.
+ *
+ * - grape: neutros da interface, do branco (50) ao Carbon Black (950), passando
+ *   por Cool Steel (400) e Dusty Grape (700).
+ * - aqua: cor de destaque, com Pearl Aqua no 400 (botões principais, foco, seleção).
+ */
+@theme {
+  --color-carbon: #222222;
+  --color-dusty: #4b4e6d;
+  --color-pearl: #84dcc6;
+  --color-steel: #95a3b3;
+
+  --color-grape-50: #f6f7f9;
+  --color-grape-100: #eceef2;
+  --color-grape-200: #d4d9e0;
+  --color-grape-300: #b7c0cb;
+  --color-grape-400: #95a3b3;
+  --color-grape-500: #7a819b;
+  --color-grape-600: #61657f;
+  --color-grape-700: #4b4e6d;
+  --color-grape-800: #3a3c56;
+  --color-grape-900: #2c2d41;
+  --color-grape-950: #222222;
+
+  --color-aqua-50: #f0fbf8;
+  --color-aqua-100: #d9f5ee;
+  --color-aqua-200: #b9ede0;
+  --color-aqua-300: #9fe5d3;
+  --color-aqua-400: #84dcc6;
+  --color-aqua-500: #62cdb2;
+  --color-aqua-600: #43b497;
+  --color-aqua-700: #33917a;
+  --color-aqua-800: #2a7262;
+  --color-aqua-900: #235c50;
+  --color-aqua-950: #10332c;
 }
 
 html,
@@ -15,8 +54,24 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #0a0a0a;
-  color: #ededed;
+  background: var(--color-carbon);
+  color: var(--color-grape-50);
+}
+
+/*
+ * Botão "de bloco" da identidade (inspirado em jogos pixel): cor sólida com uma
+ * borda inferior mais escura que afunda ao clicar.
+ */
+@utility btn-block {
+  border-bottom-width: 4px;
+  transition: transform 80ms ease, border-bottom-width 80ms ease, filter 120ms ease;
+  &:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(2px);
+    border-bottom-width: 2px;
+  }
 }
 
 canvas {
@@ -75,6 +130,16 @@ canvas {
   to   { opacity: 0; }
 }
 
+/* Fundo das telas de login: o escritório desliza devagar. */
+@keyframes scene-drift {
+  from { transform: scale(1.08) translate3d(-1.5%, -1%, 0); }
+  to   { transform: scale(1.08) translate3d(1.5%, 1%, 0); }
+}
+
+.animate-scene-drift {
+  animation: scene-drift 28s ease-in-out infinite alternate;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Sem movimento: só some. */
   .animate-coin-gain {
@@ -82,6 +147,7 @@ canvas {
   }
 
   .animate-sidebar-fade,
+  .animate-scene-drift,
   .animate-phone-buzz,
   .animate-phone-pop {
     animation: none;

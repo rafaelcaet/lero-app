@@ -9,7 +9,7 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
     parent,
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
-    backgroundColor: "#1b1d27",
+    backgroundColor: "#2c2d41",
     pixelArt: true,
     roundPixels: true,
     // O canvas ocupa todo o contêiner (sem faixas pretas); a câmera segue o jogador.

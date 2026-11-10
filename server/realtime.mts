@@ -11,6 +11,7 @@ import { MAP_HEIGHT, MAP_WIDTH, TILE_SIZE } from "../src/game/constants.ts";
 import { createOfficeLayout } from "../src/game/maps/officeLayout.ts";
 import { computeSeats, type Seat } from "../src/game/maps/seats.ts";
 import {
+  CLOSE_UNAUTHORIZED,
   LIMITS,
   type ClientMessage,
   type Facing,
@@ -36,8 +37,9 @@ import {
   type OwnedItem,
   type PetKind,
 } from "../src/shared/shop.ts";
+import { authSecret, verifyToken } from "../src/lib/auth/token.ts";
 import { MemoryStore, type Store } from "./db/store.mts";
-import { gearOf, isWalletKey, publicWallet, WalletStore, type StoredWallet } from "./wallets.mts";
+import { gearOf, publicWallet, WalletStore, type StoredWallet } from "./wallets.mts";
 
 /** Mensagens por segundo aceitas de cada conexão (acima disso, descarta). */
 const MAX_MESSAGES_PER_SECOND = 60;
@@ -317,7 +319,14 @@ function handleStand(state: PlayerState) {
 async function handleJoin(id: string, client: Client, msg: Extract<ClientMessage, { type: "join" }>) {
   if (client.state || client.joining) return;
   client.joining = true;
-  const key = isWalletKey(msg.walletKey) ? msg.walletKey : randomUUID();
+  // Só entra quem fez login no site: o ingresso assinado diz a conta (chave e nome).
+  const ticket = verifyToken(msg.ticket, "game", secret);
+  if (!ticket) {
+    client.joining = false;
+    client.ws.close(CLOSE_UNAUTHORIZED, "unauthorized");
+    return;
+  }
+  const key = ticket.key;
   let wallet: StoredWallet;
   try {
     wallet = await wallets.acquire(key);
@@ -334,7 +343,7 @@ async function handleJoin(id: string, client: Client, msg: Extract<ClientMessage
     return;
   }
 
-  const name = String(msg.name ?? "").trim().slice(0, LIMITS.nameLength) || "Visitante";
+  const name = ticket.name.trim().slice(0, LIMITS.nameLength) || "Visitante";
   const now = Date.now();
   // Começa a contar o tempo agora (a menos que a mesma carteira já esteja online em outra aba).
   if (clientsOfWallet(wallet).length === 0) wallet.lastAwardAt = now;
@@ -512,6 +521,8 @@ function allowMessage(client: Client): boolean {
 }
 
 let iceServers: RTCIceServer[] = [];
+/** Segredo que confere os ingressos do login (AUTH_SECRET, o mesmo do site). */
+let secret = "";
 
 export interface RealtimeOptions {
   /** Servidores STUN/TURN enviados aos clientes (ex.: TURN para redes restritas). */
@@ -529,6 +540,7 @@ export interface RealtimeServer {
 
 export function createRealtimeServer(options: RealtimeOptions): RealtimeServer {
   iceServers = options.iceServers;
+  secret = authSecret(); // sem AUTH_SECRET em produção, falha já ao subir
   store = options.store;
   wallets = new WalletStore(store);
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });

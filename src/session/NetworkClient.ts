@@ -1,7 +1,8 @@
-import type { ClientMessage, ServerMessage } from "@/shared/protocol";
+import { CLOSE_UNAUTHORIZED, type ClientMessage, type ServerMessage } from "@/shared/protocol";
 import { Emitter } from "./Emitter";
 
-export type ConnectionStatus = "connecting" | "open" | "closed";
+/** "unauthorized": o servidor recusou o login (ingresso vencido); não reconecta. */
+export type ConnectionStatus = "connecting" | "open" | "closed" | "unauthorized";
 
 type NetworkEvents = {
   status: ConnectionStatus;
@@ -56,9 +57,15 @@ export class NetworkClient extends Emitter<NetworkEvents> {
         // mensagem inválida: ignora
       }
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (this.ws !== ws) return;
       this.ws = null;
+      if (event.code === CLOSE_UNAUTHORIZED) {
+        // Tentar de novo com o mesmo ingresso daria no mesmo: precisa entrar de novo.
+        this.running = false;
+        this.emit("status", "unauthorized");
+        return;
+      }
       this.emit("status", "closed");
       if (this.running) {
         this.reconnectTimer = setTimeout(() => this.connect(), RECONNECT_DELAY_MS);

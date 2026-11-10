@@ -10,6 +10,9 @@ import type { CostumeId, PetKind, RideKind, ShopItemId, Wallet } from "./shop.ts
 /** Caminho do WebSocket do jogo (mesma origem do site). */
 export const WS_PATH = "/ws";
 
+/** Código de fechamento do WebSocket quando o ingresso de login é inválido/vencido. */
+export const CLOSE_UNAUTHORIZED = 4001;
+
 export const LIMITS = {
   nameLength: 24,
   chatLength: 500,
@@ -73,12 +76,14 @@ export type SignalData =
 export type ClientMessage =
   | {
       type: "join";
-      name: string;
       appearance: Appearance;
       x: number;
       y: number;
-      /** Chave da carteira guardada no navegador (mantém as Lerocoins entre visitas). */
-      walletKey?: string;
+      /**
+       * Ingresso assinado entregue pela página a quem fez login. Diz ao servidor a
+       * conta (nome e carteira); sem ele válido, a conexão fecha com o código 4001.
+       */
+      ticket: string;
     }
   | { type: "move"; x: number; y: number; facing: Facing; anim: MoveAnim }
   | { type: "sit"; seatId: string }

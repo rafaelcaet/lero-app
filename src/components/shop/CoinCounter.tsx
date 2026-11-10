@@ -20,7 +20,7 @@ export function CoinCounter({ coins, onOpenShop }: { coins: number; onOpenShop: 
       onClick={onOpenShop}
       title="Lerocoins: você ganha 1 a cada 10 segundos online. Clique para abrir a loja."
       // Mesmo formato dos botões do HUD (Falar, Ações), com o dourado da moeda no lugar do verde.
-      className="group relative flex h-10 select-none items-center gap-2 rounded-full border border-amber-400/30 bg-neutral-900/95 pl-1.5 pr-1.5 text-neutral-100 shadow-lg outline-none transition-[color,background-color,border-color,transform] hover:border-amber-400/60 hover:bg-neutral-800/95 focus-visible:ring-2 focus-visible:ring-amber-400/60 active:scale-95"
+      className="group relative flex h-10 select-none items-center gap-2 rounded-full border border-amber-400/30 bg-grape-900/95 pl-1.5 pr-1.5 text-grape-100 shadow-lg outline-none transition-[color,background-color,border-color,transform] hover:border-amber-400/60 hover:bg-grape-800/95 focus-visible:ring-2 focus-visible:ring-amber-400/60 active:scale-95"
     >
       <LerocoinIcon size={24} />
       <span className="min-w-[2ch] font-display text-base font-semibold tabular-nums text-amber-300">{coins.toLocaleString("pt-BR")}</span>

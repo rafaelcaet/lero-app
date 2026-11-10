@@ -6,11 +6,9 @@ import {
   sanitizeAppearance,
   type Appearance,
 } from "@/shared/appearance";
-import { LIMITS } from "@/shared/protocol";
 import { CharacterCreator } from "@/components/character/CharacterCreator";
 import { Office } from "./Office";
 
-const NAME_STORAGE_KEY = "lero:name";
 const APPEARANCE_STORAGE_KEY = "lero:appearance";
 
 function readStorage(key: string): string {
@@ -48,61 +46,41 @@ function parseAppearance(raw: string): Appearance {
   }
 }
 
-interface Profile {
-  name: string;
-  appearance: Appearance;
+/** Escolhe a aparência antes de entrar no escritório. O nome vem da conta (login). */
+export function GameRoot({ name, ticket }: { name: string; ticket: string }) {
+  const [appearance, setAppearance] = useState<Appearance | null>(null);
+  if (!appearance) return <JoinForm name={name} onSubmit={setAppearance} />;
+  return <Office name={name} appearance={appearance} ticket={ticket} />;
 }
 
-/** Pede nome e aparência antes de entrar no escritório. */
-export function GameRoot() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  if (!profile) return <JoinForm onSubmit={setProfile} />;
-  return <Office name={profile.name} appearance={profile.appearance} />;
-}
-
-function JoinForm({ onSubmit }: { onSubmit: (profile: Profile) => void }) {
-  const storedName = useStored(NAME_STORAGE_KEY);
+function JoinForm({ name, onSubmit }: { name: string; onSubmit: (appearance: Appearance) => void }) {
   const storedAppearance = useStored(APPEARANCE_STORAGE_KEY);
   // null = usuário ainda não mexeu; mostra o que estava salvo.
-  const [draftName, setDraftName] = useState<string | null>(null);
   const [draftAppearance, setDraftAppearance] = useState<Appearance | null>(null);
-  const name = draftName ?? storedName;
   const appearance = draftAppearance ?? parseAppearance(storedAppearance);
 
   return (
     <div className="flex h-full w-full overflow-y-auto p-4">
       <form
-        className="m-auto flex w-full max-w-3xl flex-col gap-5 rounded-lg border border-neutral-800 bg-neutral-900 p-5"
+        className="m-auto flex w-full max-w-3xl flex-col gap-6 rounded-[22px] border border-white/10 bg-grape-800/60 p-5 shadow-xl sm:p-7"
         onSubmit={(e) => {
           e.preventDefault();
-          const trimmed = name.trim().slice(0, LIMITS.nameLength);
-          if (!trimmed) return;
-          writeStorage(NAME_STORAGE_KEY, trimmed);
           writeStorage(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
-          onSubmit({ name: trimmed, appearance });
+          onSubmit(appearance);
         }}
       >
-        <div className="flex flex-col gap-2">
-          <label htmlFor="player-name" className="font-display text-lg font-semibold text-neutral-100">
-            Como você quer ser chamado?
-          </label>
-          <input
-            id="player-name"
-            autoFocus
-            maxLength={LIMITS.nameLength}
-            value={name}
-            onChange={(e) => setDraftName(e.target.value)}
-            placeholder="Seu nome"
-            className="rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-neutral-100 outline-none focus:border-emerald-500"
-          />
+        <div>
+          <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-white">
+            Olá, <span className="text-pearl">{name}</span>!
+          </h2>
+          <p className="mt-1 text-sm text-grape-300">Monte seu personagem antes de entrar.</p>
         </div>
 
         <CharacterCreator value={appearance} onChange={setDraftAppearance} />
 
         <button
           type="submit"
-          disabled={!name.trim()}
-          className="rounded bg-emerald-600 px-3 py-2 font-display text-base font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
+          className="btn-block h-12 rounded-xl border-aqua-700 bg-aqua-400 font-display text-base font-semibold uppercase tracking-wider text-carbon outline-none focus-visible:ring-4 focus-visible:ring-aqua-400/40"
         >
           Entrar no escritório
         </button>

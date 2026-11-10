@@ -18,7 +18,7 @@ export function TablePanel({ session, state }: TablePanelProps) {
 
   if (members.length < 2) {
     return (
-      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded bg-neutral-900/90 px-3 py-1.5 text-xs text-neutral-300">
+      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded bg-grape-900/90 px-3 py-1.5 text-xs text-grape-300">
         Você está sentado{call.localStream ? " · câmera e microfone prontos" : ""}. Quando alguém
         sentar nesta mesa, a conversa começa.
       </div>
@@ -30,10 +30,10 @@ export function TablePanel({ session, state }: TablePanelProps) {
 
   return (
     <aside
-      className="absolute inset-x-2 bottom-2 flex max-h-[60%] flex-col gap-2 rounded-lg border border-neutral-700 bg-neutral-900/95 p-2 text-neutral-200 shadow-xl sm:inset-x-auto sm:inset-y-2 sm:right-2 sm:max-h-none sm:w-96 lg:w-[28rem]"
+      className="absolute inset-x-2 bottom-2 flex max-h-[60%] flex-col gap-2 rounded-lg border border-grape-700 bg-grape-900/95 p-2 text-grape-200 shadow-xl sm:inset-x-auto sm:inset-y-2 sm:right-2 sm:max-h-none sm:w-96 lg:w-[28rem]"
       aria-label="Conversa da mesa"
     >
-      <header className="flex items-center justify-between text-xs text-neutral-400">
+      <header className="flex items-center justify-between text-xs text-grape-400">
         <span>Mesa · {members.length} pessoas</span>
         <div className="flex gap-1">
           <MediaButton
@@ -97,7 +97,7 @@ function MediaButton(props: { label: string; on: boolean; disabled: boolean; ico
       // Evita que o botão "roube" o foco do teclado do jogo.
       onMouseDown={(e) => e.preventDefault()}
       onClick={props.onClick}
-      className={`rounded px-2 py-1 text-sm ${props.on ? "bg-neutral-700" : "bg-red-700/80"} disabled:opacity-40`}
+      className={`rounded px-2 py-1 text-sm ${props.on ? "bg-grape-700" : "bg-red-700/80"} disabled:opacity-40`}
     >
       {props.icon}
     </button>

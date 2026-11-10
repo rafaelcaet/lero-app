@@ -85,7 +85,7 @@ export function BubbleMenu({
   return (
     <div className="flex flex-col items-end gap-2">
       {open && (
-        <div className="w-64 rounded-xl border border-neutral-700 bg-neutral-900/95 p-2 shadow-xl">
+        <div className="w-64 rounded-xl border border-grape-700 bg-grape-900/95 p-2 shadow-xl">
           <form
             className="flex gap-1.5"
             onSubmit={(e) => {
@@ -103,24 +103,24 @@ export function BubbleMenu({
               placeholder="Diga algo rápido…"
               aria-label="Mensagem do balão"
               enterKeyHint="send"
-              className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-emerald-500"
+              className="min-w-0 flex-1 rounded border border-grape-700 bg-grape-950 px-2 py-1.5 text-sm text-grape-100 outline-none placeholder:text-grape-600 focus:border-aqua-500"
             />
             <button
               type="submit"
               onMouseDown={keepFocus}
               disabled={!text.trim()}
-              className="rounded bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-40"
+              className="rounded bg-aqua-400 px-3 text-sm font-medium text-grape-950 hover:bg-aqua-300 disabled:opacity-40"
             >
               Enviar
             </button>
           </form>
-          <div className="mt-1 flex justify-between px-0.5 text-[11px] text-neutral-500">
+          <div className="mt-1 flex justify-between px-0.5 text-[11px] text-grape-500">
             <span>Enter envia · Esc fecha</span>
             <span className={length >= BUBBLE_MAX_LENGTH ? "text-amber-400" : undefined}>
               {length}/{BUBBLE_MAX_LENGTH}
             </span>
           </div>
-          <div className="mt-2 grid grid-cols-4 gap-1 border-t border-neutral-800 pt-2">
+          <div className="mt-2 grid grid-cols-4 gap-1 border-t border-grape-800 pt-2">
             {EMOTES.map((e) => (
               <button
                 key={e.id}
@@ -129,7 +129,7 @@ export function BubbleMenu({
                 onClick={() => emote(e.id)}
                 title={e.label}
                 aria-label={e.label}
-                className="flex items-center justify-center rounded-lg py-1.5 hover:bg-neutral-700 active:scale-95"
+                className="flex items-center justify-center rounded-lg py-1.5 hover:bg-grape-700 active:scale-95"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- pixel art gerada no navegador */}
                 <img src={emoteImageUrl(e.id)} alt="" width={EMOTE_PX} height={EMOTE_PX} style={{ imageRendering: "pixelated" }} />
@@ -147,7 +147,7 @@ export function BubbleMenu({
         label="Falar"
         trailing={
           // Atalho só faz sentido com teclado: some em telas de toque.
-          <kbd className="ml-0.5 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-px font-sans text-[10px] font-medium text-neutral-400 pointer-coarse:hidden">
+          <kbd className="ml-0.5 rounded border border-grape-700 bg-grape-800 px-1.5 py-px font-sans text-[10px] font-medium text-grape-400 pointer-coarse:hidden">
             Enter
           </kbd>
         }

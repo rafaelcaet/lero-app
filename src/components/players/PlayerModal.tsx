@@ -25,13 +25,13 @@ export function PlayerModal({ player, following, onFollow, onStopFollow, onMessa
         role="dialog"
         aria-modal="true"
         aria-labelledby="player-modal-name"
-        className="relative w-full max-w-xs rounded-2xl border border-neutral-800 bg-neutral-900 p-5 text-neutral-200 shadow-2xl"
+        className="relative w-full max-w-xs rounded-2xl border border-grape-800 bg-grape-900 p-5 text-grape-200 shadow-2xl"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Fechar"
-          className="absolute right-3 top-3 rounded-full p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+          className="absolute right-3 top-3 rounded-full p-1 text-grape-500 hover:bg-grape-800 hover:text-grape-200"
         >
           <CloseIcon size={18} />
         </button>
@@ -39,11 +39,11 @@ export function PlayerModal({ player, following, onFollow, onStopFollow, onMessa
         <div className="flex items-center gap-4 pr-6">
           <PlayerAvatar name={player.name} appearance={player.appearance} costume={player.costume} size="lg" />
           <div className="min-w-0">
-            <h2 id="player-modal-name" className="truncate font-display text-xl font-semibold text-neutral-50">
+            <h2 id="player-modal-name" className="truncate font-display text-xl font-semibold text-grape-50">
               {player.name}
             </h2>
-            <p className="flex items-center gap-1.5 text-sm text-neutral-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <p className="flex items-center gap-1.5 text-sm text-grape-400">
+              <span className="h-2 w-2 rounded-full bg-aqua-500" />
               Online · {statusLabel(player)}
             </p>
           </div>
@@ -86,11 +86,11 @@ function ActionButton(props: {
       title={props.hint}
       className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 transition-colors ${
         props.active
-          ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
-          : "border-neutral-800 bg-neutral-800/60 text-neutral-100 hover:border-emerald-500/40 hover:bg-neutral-800"
+          ? "border-aqua-500/40 bg-aqua-500/15 text-aqua-300 hover:bg-aqua-500/25"
+          : "border-grape-800 bg-grape-800/60 text-grape-100 hover:border-aqua-500/40 hover:bg-grape-800"
       }`}
     >
-      <span className={props.active ? "" : "text-emerald-400"}>{props.icon}</span>
+      <span className={props.active ? "" : "text-aqua-400"}>{props.icon}</span>
       <span className="font-display text-sm font-semibold">{props.label}</span>
     </button>
   );

@@ -33,7 +33,7 @@ export function ActivityMenu({
       {open && (
         <div
           role="menu"
-          className="flex min-w-44 flex-col gap-1 rounded-xl border border-neutral-700 bg-neutral-900/95 p-1.5 shadow-xl"
+          className="flex min-w-44 flex-col gap-1 rounded-xl border border-grape-700 bg-grape-900/95 p-1.5 shadow-xl"
         >
           {ACTIVITIES.map((a) => (
             <button
@@ -43,8 +43,8 @@ export function ActivityMenu({
               aria-checked={a.id === current}
               onMouseDown={keepFocus}
               onClick={() => pick(a.id === current ? null : a.id)}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-neutral-700 ${
-                a.id === current ? "bg-emerald-600/30 text-emerald-200" : "text-neutral-100"
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-grape-700 ${
+                a.id === current ? "bg-aqua-600/30 text-aqua-200" : "text-grape-100"
               }`}
             >
               <span aria-hidden className="text-lg leading-none">
@@ -67,7 +67,7 @@ export function ActivityMenu({
           }
           label={active.label}
           trailing={
-            <span className="-mr-2 ml-1 rounded-full bg-neutral-800 px-3 py-1 font-sans text-xs font-medium text-neutral-200 group-hover:bg-neutral-700">
+            <span className="-mr-2 ml-1 rounded-full bg-grape-800 px-3 py-1 font-sans text-xs font-medium text-grape-200 group-hover:bg-grape-700">
               Parar
             </span>
           }
@@ -85,7 +85,7 @@ export function ActivityMenu({
             <ChevronIcon
               direction="up"
               size={14}
-              className={`-mr-1 text-neutral-500 transition-transform ${open ? "rotate-180" : ""}`}
+              className={`-mr-1 text-grape-500 transition-transform ${open ? "rotate-180" : ""}`}
             />
           }
         />

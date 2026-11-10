@@ -36,7 +36,7 @@ export function PlayerList(props: PlayerListProps) {
   return (
     <aside
       aria-label="Jogadores online"
-      className={`flex min-h-0 flex-col overflow-hidden bg-neutral-900 text-neutral-200 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+      className={`flex min-h-0 flex-col overflow-hidden bg-grape-900 text-grape-200 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
         collapsed ? "md:w-16" : "md:w-64"
       } ${props.className ?? ""}`}
     >
@@ -60,10 +60,10 @@ function ExpandedList({ session, state, players, onSelect, onToggleCollapsed }: 
   const { selfId, followTargetId, status } = state;
   return (
     <>
-      <header className="flex items-center justify-between gap-2 border-b border-neutral-800 px-4 py-3">
+      <header className="flex items-center justify-between gap-2 border-b border-grape-800 px-4 py-3">
         <h2 className="font-display text-base font-semibold">Online</h2>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">
+          <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-xs font-medium text-aqua-400">
             {players.length}
           </span>
           <button
@@ -71,7 +71,7 @@ function ExpandedList({ session, state, players, onSelect, onToggleCollapsed }: 
             onClick={onToggleCollapsed}
             aria-label="Recolher barra lateral"
             title="Recolher"
-            className="hidden rounded-md p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200 md:block"
+            className="hidden rounded-md p-1 text-grape-500 hover:bg-grape-800 hover:text-grape-200 md:block"
           >
             <ChevronIcon direction="right" size={18} />
           </button>
@@ -79,7 +79,7 @@ function ExpandedList({ session, state, players, onSelect, onToggleCollapsed }: 
       </header>
 
       {status !== "open" || players.length === 0 ? (
-        <p className="flex-1 px-4 py-3 text-xs text-neutral-500">
+        <p className="flex-1 px-4 py-3 text-xs text-grape-500">
           {status === "open" ? "Ninguém por aqui ainda." : "Conectando ao servidor…"}
         </p>
       ) : (
@@ -92,26 +92,26 @@ function ExpandedList({ session, state, players, onSelect, onToggleCollapsed }: 
               <>
                 <span className="relative">
                   <PlayerAvatar name={player.name} appearance={player.appearance} costume={player.costume} />
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-neutral-900" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-aqua-500 ring-2 ring-grape-900" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-neutral-100">
+                  <span className="block truncate text-sm font-medium text-grape-100">
                     {player.name}
-                    {isSelf && <span className="font-normal text-neutral-500"> (você)</span>}
+                    {isSelf && <span className="font-normal text-grape-500"> (você)</span>}
                   </span>
-                  <span className="block truncate text-xs text-neutral-500">
+                  <span className="block truncate text-xs text-grape-500">
                     {isFollowed ? "Você está seguindo" : statusLabel(player)}
                   </span>
                 </span>
                 {unread > 0 && (
                   <span
-                    className="flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-bold text-neutral-950"
+                    className="flex h-5 min-w-5 items-center justify-center rounded-full bg-aqua-500 px-1.5 text-[11px] font-bold text-grape-950"
                     aria-label={`${unread} mensagens não lidas`}
                   >
                     {unread}
                   </span>
                 )}
-                {isFollowed && !unread && <span aria-hidden className="text-xs text-emerald-400">●</span>}
+                {isFollowed && !unread && <span aria-hidden className="text-xs text-aqua-400">●</span>}
               </>
             );
 
@@ -123,8 +123,8 @@ function ExpandedList({ session, state, players, onSelect, onToggleCollapsed }: 
                   <button
                     type="button"
                     onClick={() => onSelect(player.id)}
-                    className={`flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none ${
-                      isFollowed ? "bg-emerald-500/10" : ""
+                    className={`flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-grape-800 focus-visible:bg-grape-800 focus-visible:outline-none ${
+                      isFollowed ? "bg-aqua-500/10" : ""
                     }`}
                   >
                     {content}
@@ -146,18 +146,18 @@ function CollapsedRail({ session, state, players, onSelect, onToggleCollapsed }:
   const { call, selfId } = state;
   return (
     <>
-      <div className="flex flex-col items-center gap-2 border-b border-neutral-800 py-3">
+      <div className="flex flex-col items-center gap-2 border-b border-grape-800 py-3">
         <button
           type="button"
           onClick={onToggleCollapsed}
           aria-label="Expandir barra lateral"
           title="Expandir"
-          className="rounded-md p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+          className="rounded-md p-1 text-grape-500 hover:bg-grape-800 hover:text-grape-200"
         >
           <ChevronIcon direction="left" size={18} />
         </button>
         <span
-          className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400"
+          className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-xs font-medium text-aqua-400"
           title={`${players.length} online`}
         >
           {players.length}
@@ -172,11 +172,11 @@ function CollapsedRail({ session, state, players, onSelect, onToggleCollapsed }:
             <span className="relative block">
               <PlayerAvatar name={player.name} appearance={player.appearance} costume={player.costume} />
               {unread > 0 ? (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-neutral-950 ring-2 ring-neutral-900">
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-aqua-500 px-1 text-[10px] font-bold text-grape-950 ring-2 ring-grape-900">
                   {unread}
                 </span>
               ) : (
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-neutral-900" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-aqua-500 ring-2 ring-grape-900" />
               )}
             </span>
           );
@@ -192,7 +192,7 @@ function CollapsedRail({ session, state, players, onSelect, onToggleCollapsed }:
                   title={label}
                   aria-label={label}
                   className={`rounded-full transition-transform hover:scale-110 ${
-                    state.followTargetId === player.id ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-neutral-900" : ""
+                    state.followTargetId === player.id ? "ring-2 ring-aqua-500 ring-offset-2 ring-offset-grape-900" : ""
                   }`}
                 >
                   {avatar}
@@ -203,7 +203,7 @@ function CollapsedRail({ session, state, players, onSelect, onToggleCollapsed }:
         })}
       </ul>
 
-      <div className="flex flex-col items-center gap-2 border-t border-neutral-800 py-3">
+      <div className="flex flex-col items-center gap-2 border-t border-grape-800 py-3">
         <RailButton
           label={call.mic ? "Desligar microfone" : "Ligar microfone"}
           off={!call.mic}
@@ -236,7 +236,7 @@ function RailButton(props: { label: string; off?: boolean; onClick: () => void; 
       onMouseDown={(e) => e.preventDefault()}
       onClick={props.onClick}
       className={`rounded-lg p-2 transition-colors ${
-        props.off ? "bg-red-600/20 text-red-300 hover:bg-red-600/30" : "text-neutral-300 hover:bg-neutral-800"
+        props.off ? "bg-red-600/20 text-red-300 hover:bg-red-600/30" : "text-grape-300 hover:bg-grape-800"
       }`}
     >
       {props.children}

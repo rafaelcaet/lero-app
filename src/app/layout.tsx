@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Fredoka, Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Nunito, Pixelify_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/** Texto corrido: arredondada e amigável. */
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
 });
 
@@ -12,13 +13,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-/**
- * Fonte da identidade do Lero, só para textos principais (classe `font-display`).
- * A "Fredoka One" virou a Fredoka variável no Google Fonts; o peso 600 equivale a ela.
- */
-const fredoka = Fredoka({
-  variable: "--font-fredoka",
-  subsets: ["latin"],
+/** Fonte pixel da identidade do Lero, só para textos principais (classe `font-display`). */
+const pixelify = Pixelify_Sans({
+  variable: "--font-pixelify",
+  subsets: ["latin", "latin-ext"],
 });
 
 export const metadata: Metadata = {
@@ -30,9 +28,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} ${fredoka.variable} h-full antialiased`}
+      className={`${nunito.variable} ${geistMono.variable} ${pixelify.variable} h-full antialiased`}
     >
-      <body className="h-full font-sans">{children}</body>
+      <body className="h-full bg-carbon font-sans">{children}</body>
     </html>
   );
 }

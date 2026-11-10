@@ -1,17 +1,14 @@
 const WALLET_KEY_STORAGE = "lero:wallet-key";
 
 /**
- * Chave da carteira de Lerocoins deste navegador. Gerada na primeira visita e
- * guardada no localStorage; sem armazenamento, vale só nesta aba.
+ * Chave de carteira que este navegador usava antes do login existir (ou "").
+ * Vai junto no cadastro para a nova conta herdar as Lerocoins já ganhas.
  */
-export function loadWalletKey(): string {
+export function readLegacyWalletKey(): string {
   try {
     const stored = localStorage.getItem(WALLET_KEY_STORAGE);
-    if (stored && /^[A-Za-z0-9-]{16,64}$/.test(stored)) return stored;
-    const key = crypto.randomUUID();
-    localStorage.setItem(WALLET_KEY_STORAGE, key);
-    return key;
+    return stored && /^[A-Za-z0-9-]{16,64}$/.test(stored) ? stored : "";
   } catch {
-    return crypto.randomUUID();
+    return "";
   }
 }

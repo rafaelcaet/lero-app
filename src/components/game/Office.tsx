@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { logout } from "@/app/(auth)/actions";
 import { resolveServerUrl, Session, unreadConversations } from "@/session/Session";
 import { useSessionState } from "@/session/useSession";
 import type { Appearance } from "@/shared/appearance";
@@ -13,7 +14,6 @@ import { PlayerModal } from "@/components/players/PlayerModal";
 import { CoinCounter } from "@/components/shop/CoinCounter";
 import { ShopModal } from "@/components/shop/ShopModal";
 import { TablePanel } from "@/components/table/TablePanel";
-import { loadWalletKey } from "@/session/walletKey";
 import { ActivityMenu } from "./ActivityMenu";
 import { BubbleMenu } from "./BubbleMenu";
 import { GameCanvas } from "./GameCanvas";
@@ -38,9 +38,9 @@ function readCollapsed(): boolean {
 }
 
 /** O escritório: jogo, barra lateral, chamada da mesa e mensagens diretas. */
-export function Office({ name, appearance }: { name: string; appearance: Appearance }) {
+export function Office({ name, appearance, ticket }: { name: string; appearance: Appearance; ticket: string }) {
   // Construir a sessão não conecta; a conexão abre/fecha no efeito (seguro em Strict Mode).
-  const [session] = useState(() => new Session(name, appearance, resolveServerUrl(), loadWalletKey()));
+  const [session] = useState(() => new Session(name, appearance, resolveServerUrl(), ticket));
   const state = useSessionState(session);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -90,8 +90,8 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
           <div className="pointer-events-auto">
             <MiniPhone unread={unread} onOpen={openPhone} />
           </div>
-          {state.status !== "open" && (
-            <div className="rounded bg-amber-600/90 px-3 py-1 text-xs text-white">
+          {(state.status === "connecting" || state.status === "closed") && (
+            <div className="rounded-full bg-amber-600/90 px-3 py-1 text-xs font-semibold text-white">
               {state.status === "connecting" ? "Conectando ao servidor…" : "Sem conexão com o servidor. Tentando novamente…"}
             </div>
           )}
@@ -106,16 +106,16 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
 
         {followed && (
           <div
-            className={`absolute left-1/2 flex -translate-x-1/2 ${isTouch ? "top-16" : "bottom-3"} items-center gap-3 rounded-full border border-emerald-500/30 bg-neutral-900/95 py-1 pl-4 pr-1 text-xs text-neutral-200 shadow-lg`}
+            className={`absolute left-1/2 flex -translate-x-1/2 ${isTouch ? "top-16" : "bottom-3"} items-center gap-3 rounded-full border border-aqua-500/30 bg-grape-900/95 py-1 pl-4 pr-1 text-xs text-grape-200 shadow-lg`}
           >
             <span>
-              Seguindo <strong className="font-semibold text-emerald-400">{followed.name}</strong>
+              Seguindo <strong className="font-semibold text-aqua-400">{followed.name}</strong>
             </span>
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => session.stopFollow()}
-              className="rounded-full bg-neutral-700 px-3 py-1 font-medium hover:bg-neutral-600"
+              className="rounded-full bg-grape-700 px-3 py-1 font-medium hover:bg-grape-600"
             >
               Parar
             </button>
@@ -142,7 +142,7 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
         <button
           type="button"
           onClick={() => setListOpen(true)}
-          className="absolute right-2 top-2 flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900/95 px-3 py-1.5 text-xs font-medium text-neutral-200 shadow-lg md:hidden"
+          className="absolute right-2 top-2 flex items-center gap-1.5 rounded-full border border-grape-700 bg-grape-900/95 px-3 py-1.5 text-xs font-medium text-grape-200 shadow-lg md:hidden"
           aria-label={`Ver jogadores online (${onlineCount})`}
         >
           <UsersIcon size={14} /> {onlineCount}
@@ -158,7 +158,7 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
           setOverlay({ kind: "player", playerId });
           setListOpen(false);
         }}
-        className={`w-72 shrink-0 border-l border-neutral-800 ${
+        className={`w-72 shrink-0 border-l border-grape-800 ${
           listOpen ? "absolute inset-y-0 right-0 z-20 flex shadow-2xl" : "hidden"
         } md:static md:flex md:shadow-none`}
       />
@@ -191,11 +191,33 @@ export function Office({ name, appearance }: { name: string; appearance: Appeara
         />
       )}
 
+      {state.status === "unauthorized" && <SessionExpired />}
+
       {overlay?.kind === "shop" && <ShopModal session={session} state={state} onClose={closeOverlay} />}
 
       {overlay?.kind === "phone" && (
         <PhoneChat session={session} state={state} initialPeerId={overlay.peerId} onClose={closeOverlay} />
       )}
+    </div>
+  );
+}
+
+/** O servidor do jogo recusou o ingresso (venceu ou é inválido): precisa entrar de novo. */
+function SessionExpired() {
+  return (
+    <div role="alertdialog" aria-labelledby="session-expired-title" className="absolute inset-0 z-40 flex items-center justify-center bg-carbon/80 p-4 backdrop-blur-sm">
+      <form action={logout} className="flex max-w-sm flex-col gap-4 rounded-[22px] border border-white/10 bg-grape-900 p-6 text-center shadow-2xl">
+        <h2 id="session-expired-title" className="font-display text-xl font-semibold uppercase tracking-wide text-white">
+          Sua sessão expirou
+        </h2>
+        <p className="text-sm text-grape-300">Entre de novo para voltar ao escritório. Suas Lerocoins continuam guardadas.</p>
+        <button
+          type="submit"
+          className="btn-block h-11 rounded-xl border-aqua-700 bg-aqua-400 font-display font-semibold uppercase tracking-wider text-carbon"
+        >
+          Entrar de novo
+        </button>
+      </form>
     </div>
   );
 }

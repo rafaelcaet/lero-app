@@ -111,29 +111,29 @@ export function ShopModal({ session, state, onClose }: ShopModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="shop-title"
-        className="relative flex max-h-full w-full max-w-md flex-col rounded-2xl border border-neutral-800 bg-neutral-900 text-neutral-200 shadow-2xl"
+        className="relative flex max-h-full w-full max-w-md flex-col rounded-2xl border border-grape-800 bg-grape-900 text-grape-200 shadow-2xl"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Fechar"
-          className="absolute right-3 top-3 rounded-full p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+          className="absolute right-3 top-3 rounded-full p-1 text-grape-500 hover:bg-grape-800 hover:text-grape-200"
         >
           <CloseIcon size={18} />
         </button>
 
-        <header className="flex items-center gap-3 border-b border-neutral-800 px-5 pb-4 pt-5 pr-12">
+        <header className="flex items-center gap-3 border-b border-grape-800 px-5 pb-4 pt-5 pr-12">
           <span className="rounded-xl bg-amber-500/15 p-2 text-amber-300">
             <ShopIcon size={22} />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="shop-title" className="font-display text-xl font-semibold text-neutral-50">
+            <h2 id="shop-title" className="font-display text-xl font-semibold text-grape-50">
               Loja
             </h2>
-            <p className="text-xs text-neutral-400">{TABS.find((t) => t.id === tab)!.subtitle}</p>
+            <p className="text-xs text-grape-400">{TABS.find((t) => t.id === tab)!.subtitle}</p>
           </div>
           {wallet && (
-            <div className="flex items-center gap-1.5 rounded-full bg-neutral-800 px-3 py-1">
+            <div className="flex items-center gap-1.5 rounded-full bg-grape-800 px-3 py-1">
               <LerocoinIcon size={18} />
               <span className="font-display font-semibold tabular-nums text-amber-300">
                 {coinFormat.format(wallet.coins)}
@@ -142,7 +142,7 @@ export function ShopModal({ session, state, onClose }: ShopModalProps) {
           )}
         </header>
 
-        <div role="tablist" aria-label="Tipo de compra" className="mx-4 mt-4 grid grid-cols-2 gap-1 rounded-xl bg-neutral-950/60 p-1">
+        <div role="tablist" aria-label="Tipo de compra" className="mx-4 mt-4 grid grid-cols-2 gap-1 rounded-xl bg-grape-950/60 p-1">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -153,7 +153,7 @@ export function ShopModal({ session, state, onClose }: ShopModalProps) {
               aria-controls="shop-panel"
               onClick={() => setTab(t.id)}
               className={`rounded-lg py-1.5 font-display text-sm font-semibold transition-colors ${
-                tab === t.id ? "bg-neutral-800 text-amber-200 shadow" : "text-neutral-400 hover:text-neutral-200"
+                tab === t.id ? "bg-grape-800 text-amber-200 shadow" : "text-grape-400 hover:text-grape-200"
               }`}
             >
               {t.label}
@@ -162,7 +162,7 @@ export function ShopModal({ session, state, onClose }: ShopModalProps) {
         </div>
 
         {!wallet ? (
-          <p className="p-5 text-sm text-neutral-400">
+          <p className="p-5 text-sm text-grape-400">
             {state.status === "open"
               ? "Este servidor ainda não tem Lerocoins. Atualize o servidor do jogo para usar a loja."
               : "Conectando ao servidor…"}
@@ -171,7 +171,7 @@ export function ShopModal({ session, state, onClose }: ShopModalProps) {
           <div id="shop-panel" role="tabpanel" aria-labelledby={`shop-tab-${tab}`} className="flex flex-col gap-5 overflow-y-auto p-4">
             {SECTIONS.map((section) => (
               <section key={section.title} aria-label={section.title}>
-                <h3 className="mb-2 px-1 font-display text-sm font-semibold text-neutral-400">{section.title}</h3>
+                <h3 className="mb-2 px-1 font-display text-sm font-semibold text-grape-400">{section.title}</h3>
                 <ul className="flex flex-col gap-3">
                   {section.items.map((item) =>
                     tab === "rent" ? (
@@ -226,7 +226,7 @@ function ShopRow(props: {
   return (
     <li
       className={`flex gap-3 rounded-xl border p-3 ${
-        rental ? "border-emerald-500/30 bg-emerald-500/5" : "border-neutral-800 bg-neutral-800/40"
+        rental ? "border-aqua-500/30 bg-aqua-500/5" : "border-grape-800 bg-grape-800/40"
       }`}
     >
       <ItemImage item={item} pet={owned?.pet ?? rental?.pet} appearance={props.appearance} />
@@ -234,19 +234,19 @@ function ShopRow(props: {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div>
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-display text-base font-semibold text-neutral-50">
+            <h3 className="font-display text-base font-semibold text-grape-50">
               {item.name}
-              {rental?.pet && <span className="text-emerald-300"> · {PET_NAMES[rental.pet]}</span>}
+              {rental?.pet && <span className="text-aqua-300"> · {PET_NAMES[rental.pet]}</span>}
             </h3>
             <span className="flex shrink-0 items-center gap-1 text-sm font-semibold tabular-nums text-amber-300">
               <LerocoinIcon size={14} /> {item.price}
             </span>
           </div>
-          <p className="text-xs text-neutral-400">{item.description}</p>
+          <p className="text-xs text-grape-400">{item.description}</p>
         </div>
 
         {rental && (
-          <p className="text-xs text-emerald-300">
+          <p className="text-xs text-aqua-300">
             Alugado · <span className="tabular-nums">{formatRemaining(rental.expiresAt - now)}</span> restantes
           </p>
         )}
@@ -254,7 +254,7 @@ function ShopRow(props: {
         {owned ? (
           <div className="flex flex-wrap items-center gap-2">
             {wear && <WearToggle {...wear} />}
-            <span className="text-xs text-emerald-300">Você já comprou: não precisa alugar.</span>
+            <span className="text-xs text-aqua-300">Você já comprou: não precisa alugar.</span>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
@@ -265,8 +265,8 @@ function ShopRow(props: {
               onClick={props.onRent}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
                 rental
-                  ? "border border-neutral-700 text-neutral-200 hover:border-amber-400/50"
-                  : "bg-amber-500 text-neutral-950 hover:bg-amber-400"
+                  ? "border border-grape-700 text-grape-200 hover:border-amber-400/50"
+                  : "bg-amber-500 text-grape-950 hover:bg-amber-400"
               }`}
             >
               {rental ? "+1 hora" : "Alugar por 1 hora"}
@@ -303,7 +303,7 @@ function BuyRow(props: {
   return (
     <li
       className={`flex gap-3 rounded-xl border p-3 ${
-        owned ? "border-emerald-500/30 bg-emerald-500/5" : "border-neutral-800 bg-neutral-800/40"
+        owned ? "border-aqua-500/30 bg-aqua-500/5" : "border-grape-800 bg-grape-800/40"
       }`}
     >
       <ItemImage item={item} pet={shownPet} appearance={props.appearance} />
@@ -311,9 +311,9 @@ function BuyRow(props: {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div>
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-display text-base font-semibold text-neutral-50">
+            <h3 className="font-display text-base font-semibold text-grape-50">
               {item.name}
-              {shownPet && <span className="text-emerald-300"> · {PET_NAMES[shownPet]}</span>}
+              {shownPet && <span className="text-aqua-300"> · {PET_NAMES[shownPet]}</span>}
             </h3>
             {!owned && (
               <span className="flex shrink-0 items-center gap-1 text-sm font-semibold tabular-nums text-amber-300">
@@ -321,9 +321,9 @@ function BuyRow(props: {
               </span>
             )}
           </div>
-          <p className="text-xs text-neutral-400">{item.buyDescription ?? item.description}</p>
+          <p className="text-xs text-grape-400">{item.buyDescription ?? item.description}</p>
           {!owned && (
-            <p className="mt-0.5 text-[11px] text-neutral-500">
+            <p className="mt-0.5 text-[11px] text-grape-500">
               Equivale a {Math.round(item.buyPrice / item.price)} h de aluguel
             </p>
           )}
@@ -332,7 +332,7 @@ function BuyRow(props: {
         {owned ? (
           <div className="flex flex-wrap items-center gap-2">
             {wear && <WearToggle {...wear} />}
-            <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-display text-xs font-semibold text-emerald-300">
+            <span className="rounded-full bg-aqua-500/15 px-2.5 py-0.5 font-display text-xs font-semibold text-aqua-300">
               Seu para sempre
             </span>
           </div>
@@ -355,7 +355,7 @@ function BuyRow(props: {
                     className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
                       pet === kind
                         ? "border-amber-400/70 bg-amber-500/15"
-                        : "border-neutral-700 bg-neutral-950/60 hover:border-neutral-500"
+                        : "border-grape-700 bg-grape-950/60 hover:border-grape-500"
                     }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element -- data URL gerada no navegador */}
@@ -381,14 +381,14 @@ function BuyRow(props: {
                       props.onBuy(isPet ? pet : undefined);
                       setConfirming(false);
                     }}
-                    className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-neutral-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-grape-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Confirmar compra
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirming(false)}
-                    className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-neutral-500"
+                    className="rounded-lg border border-grape-700 px-3 py-1.5 text-xs font-semibold text-grape-200 hover:border-grape-500"
                   >
                     Cancelar
                   </button>
@@ -400,7 +400,7 @@ function BuyRow(props: {
                   type="button"
                   disabled={missing > 0}
                   onClick={() => setConfirming(true)}
-                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-neutral-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-grape-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Comprar
                 </button>
@@ -421,7 +421,7 @@ function WearToggle({ inUse, onLabel, offLabel, toggle }: WearControl) {
       type="button"
       onClick={() => toggle(!inUse)}
       className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-        inUse ? "bg-neutral-700 text-neutral-100 hover:bg-neutral-600" : "bg-emerald-600 text-white hover:bg-emerald-500"
+        inUse ? "bg-grape-700 text-grape-100 hover:bg-grape-600" : "bg-aqua-400 text-grape-950 hover:bg-aqua-300"
       }`}
     >
       {inUse ? offLabel : onLabel}
@@ -431,7 +431,7 @@ function WearToggle({ inUse, onLabel, offLabel, toggle }: WearControl) {
 
 function MissingCoins({ missing }: { missing: number }) {
   return (
-    <span className="text-xs text-neutral-500">
+    <span className="text-xs text-grape-500">
       Faltam {coinFormat.format(missing)} ({formatWait(missing)})
     </span>
   );
@@ -439,7 +439,7 @@ function MissingCoins({ missing }: { missing: number }) {
 
 /** Mascote já definido (alugado, comprado ou escolhido para comprar) aparece sozinho. */
 function ItemImage({ item, pet, appearance }: { item: ShopItem; pet: PetKind | undefined; appearance: Appearance }) {
-  const box = "flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-neutral-950/60";
+  const box = "flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-grape-950/60";
   const pixel = { imageRendering: "pixelated" } as const;
 
   if (isCostumeId(item.id)) {

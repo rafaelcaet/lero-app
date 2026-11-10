@@ -21,7 +21,7 @@ interface PhoneChatProps {
 
 const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-/** Paleta do "app" de mensagens: base escura do Lero com acento esmeralda. */
+/** Paleta do "app" de mensagens: base escura do Lero com acento Pearl Aqua. */
 const C = {
   screen: "bg-[#0b141a]",
   bar: "bg-[#111b21]",
@@ -48,7 +48,7 @@ export function PhoneChat({ session, state, initialPeerId, onClose }: PhoneChatP
           type="button"
           onClick={onClose}
           aria-label="Fechar celular"
-          className="absolute -right-2 -top-2 z-10 rounded-full bg-neutral-800 p-1.5 text-neutral-300 shadow-lg ring-1 ring-neutral-700 hover:bg-neutral-700 sm:-right-12 sm:top-0"
+          className="absolute -right-2 -top-2 z-10 rounded-full bg-grape-800 p-1.5 text-grape-300 shadow-lg ring-1 ring-grape-700 hover:bg-grape-700 sm:-right-12 sm:top-0"
         >
           <CloseIcon size={18} />
         </button>
@@ -58,9 +58,9 @@ export function PhoneChat({ session, state, initialPeerId, onClose }: PhoneChatP
           role="dialog"
           aria-modal="true"
           aria-label="Mensagens do Lero"
-          className="flex h-full flex-col rounded-[46px] border-[3px] border-neutral-600 bg-neutral-950 p-2.5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
+          className="flex h-full flex-col rounded-[46px] border-[3px] border-grape-600 bg-grape-950 p-2.5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
         >
-          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[36px] ${C.screen} text-neutral-100`}>
+          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[36px] ${C.screen} text-grape-100`}>
             <StatusBar />
             {conversation ? (
               <ConversationScreen
@@ -133,14 +133,14 @@ function ChatListScreen({ state, onOpen }: { state: SessionState; onOpen: (peerI
     <>
       <header className={`shrink-0 px-5 pb-3 pt-2 ${C.bar}`}>
         <Image src={logo} alt="Lero" className="h-7 w-auto" />
-        <p className="mt-1 text-xs text-neutral-400">Conversas</p>
+        <p className="mt-1 text-xs text-grape-400">Conversas</p>
       </header>
 
       {conversations.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
           <Image src={icon} alt="" width={64} height={64} className="rounded-2xl opacity-80" />
           <p className="font-display text-lg font-semibold">Nenhuma conversa</p>
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-grape-400">
             Clique num nome na lista de quem está online e escolha <MessageIcon size={14} className="inline" /> para
             mandar uma DM.
           </p>
@@ -161,25 +161,25 @@ function ChatListScreen({ state, onOpen }: { state: SessionState; onOpen: (peerI
                   <span className="relative">
                     <PlayerAvatar name={c.peerName} appearance={c.appearance} size="lg" />
                     {online && (
-                      <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-[#0b141a]" />
+                      <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full bg-aqua-500 ring-2 ring-[#0b141a]" />
                     )}
                   </span>
                   <span className="min-w-0 flex-1 border-b border-white/5 pb-3">
                     <span className="flex items-baseline justify-between gap-2">
                       <span className="truncate font-display text-base font-semibold">{c.peerName}</span>
                       {last && (
-                        <span className={`shrink-0 text-[11px] ${c.unread ? "text-emerald-400" : "text-neutral-500"}`}>
+                        <span className={`shrink-0 text-[11px] ${c.unread ? "text-aqua-400" : "text-grape-500"}`}>
                           {timeFormat.format(last.ts)}
                         </span>
                       )}
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-1 truncate text-sm text-neutral-400">
+                      <span className="flex min-w-0 items-center gap-1 truncate text-sm text-grape-400">
                         {fromSelf && <CheckCheckIcon size={14} className="shrink-0 text-sky-400" />}
                         <span className="truncate">{last?.text}</span>
                       </span>
                       {c.unread > 0 && (
-                        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-bold text-neutral-950">
+                        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-aqua-500 px-1.5 text-[11px] font-bold text-grape-950">
                           {c.unread}
                         </span>
                       )}
@@ -238,14 +238,14 @@ function ConversationScreen({
           type="button"
           onClick={onBack}
           aria-label="Voltar para as conversas"
-          className="rounded-full p-1.5 text-neutral-300 hover:bg-white/10"
+          className="rounded-full p-1.5 text-grape-300 hover:bg-white/10"
         >
           <ArrowLeftIcon size={20} />
         </button>
         <PlayerAvatar name={conversation.peerName} appearance={conversation.appearance} />
         <div className="min-w-0">
           <p className="truncate font-display text-base font-semibold leading-tight">{conversation.peerName}</p>
-          <p className={`text-xs ${online ? "text-emerald-400" : "text-neutral-500"}`}>
+          <p className={`text-xs ${online ? "text-aqua-400" : "text-grape-500"}`}>
             {online ? "online" : "saiu do escritório"}
           </p>
         </div>
@@ -261,7 +261,7 @@ function ConversationScreen({
       >
         <div className="space-y-1">
           <div className="mb-3 flex justify-center">
-            <span className="rounded-md bg-[#1f2c33] px-2.5 py-1 text-[11px] text-neutral-300">Hoje</span>
+            <span className="rounded-md bg-[#1f2c33] px-2.5 py-1 text-[11px] text-grape-300">Hoje</span>
           </div>
           <div className="mx-auto mb-3 max-w-[85%] rounded-md bg-[#1f2c33]/90 px-3 py-1.5 text-center text-[11px] leading-snug text-amber-200/90">
             🔒 Mensagens só entre vocês dois. Somem quando você sai do Lero.
@@ -288,13 +288,13 @@ function ConversationScreen({
           onChange={(e) => setText(e.target.value)}
           placeholder={online ? "Mensagem" : `${conversation.peerName} saiu do escritório`}
           aria-label={`Mensagem para ${conversation.peerName}`}
-          className={`min-w-0 flex-1 rounded-full ${C.field} px-4 py-2.5 text-sm text-neutral-100 outline-none placeholder:text-neutral-500 disabled:opacity-60`}
+          className={`min-w-0 flex-1 rounded-full ${C.field} px-4 py-2.5 text-sm text-grape-100 outline-none placeholder:text-grape-500 disabled:opacity-60`}
         />
         <button
           type="submit"
           disabled={!online || !text.trim()}
           aria-label="Enviar"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-neutral-950 transition-opacity hover:bg-emerald-400 disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-aqua-500 text-grape-950 transition-opacity hover:bg-aqua-400 disabled:opacity-40"
         >
           <SendIcon size={18} />
         </button>
@@ -313,7 +313,7 @@ function Bubble({ message, mine, first }: { message: DirectMessage; mine: boolea
       >
         {first && <BubbleTail mine={mine} />}
         <p className="whitespace-pre-wrap break-words pr-14 leading-snug">{message.text}</p>
-        <span className="absolute bottom-1 right-2 flex items-center gap-0.5 text-[10px] text-neutral-300/70">
+        <span className="absolute bottom-1 right-2 flex items-center gap-0.5 text-[10px] text-grape-300/70">
           {timeFormat.format(message.ts)}
           {mine && <CheckCheckIcon size={13} className="text-sky-400" />}
         </span>
